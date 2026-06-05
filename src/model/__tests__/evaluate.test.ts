@@ -237,6 +237,29 @@ describe('label and emoji decoration', () => {
     }
     expect(text(s, mock)).toBe('[Opus]')
   })
+
+  it('styled prefix/suffix spans carry their style; unstyled stay escape-free', () => {
+    const s: SimpleSegment = {
+      ...seg,
+      label: undefined,
+      emoji: undefined,
+      prefix: '[',
+      suffix: ']',
+      prefixStyle: { color: { kind: 'ansi16', code: 34 } },
+      suffixStyle: { color: { kind: 'ansi16', code: 35 }, bold: true },
+    }
+    const spans = evaluateSegment(s, mock).spans
+    const prefixSpan = spans.find((sp) => sp.text === '[')
+    const suffixSpan = spans.find((sp) => sp.text === ']')
+    expect(prefixSpan?.style).toEqual({ color: { kind: 'ansi16', code: 34 } })
+    expect(suffixSpan?.style).toEqual({ color: { kind: 'ansi16', code: 35 }, bold: true })
+
+    // Without affix styles the spans carry no style at all.
+    const plain: SimpleSegment = { ...s, prefixStyle: undefined, suffixStyle: undefined }
+    const plainSpans = evaluateSegment(plain, mock).spans
+    expect(plainSpans.find((sp) => sp.text === '[')?.style).toBeUndefined()
+    expect(plainSpans.find((sp) => sp.text === ']')?.style).toBeUndefined()
+  })
 })
 
 describe('threshold colors resolved to concrete colors by evaluate()', () => {
@@ -288,6 +311,14 @@ describe('threshold colors resolved to concrete colors by evaluate()', () => {
     expect(styled.length).toBeGreaterThanOrEqual(2) // bar + percent
     for (const s of styled) {
       expect(s.style?.color).toEqual({ kind: 'ansi16', code })
+    }
+  })
+})
+
+describe('segment registry', () => {
+  it('every SEGMENTS entry has a non-empty description', () => {
+    for (const def of Object.values(SEGMENTS)) {
+      expect(def.description.trim().length).toBeGreaterThan(0)
     }
   })
 })

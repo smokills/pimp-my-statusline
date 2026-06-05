@@ -54,6 +54,9 @@ const base = {
   emoji: emojiSchema.optional(),
   prefix: z.string().optional(),
   suffix: z.string().optional(),
+  // Styles for the literal affix text; label color is validated via labelSchema.
+  prefixStyle: textStyle.optional(),
+  suffixStyle: textStyle.optional(),
   joinBefore: z.string().optional(),
 }
 

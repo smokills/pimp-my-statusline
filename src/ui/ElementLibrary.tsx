@@ -53,7 +53,7 @@ function LibraryItem({
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
-      title={disabled ? 'already in layout' : `add ${entry.label}`}
+      title={disabled ? 'already in layout' : entry.description}
       style={{ justifyContent: 'space-between', cursor: disabled ? 'not-allowed' : 'grab' }}
       onClick={() => !disabled && onAdd(entry)}
       onKeyDown={(e) => {

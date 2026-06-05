@@ -52,7 +52,7 @@ function MultiToggle({
   active,
   onToggle,
 }: {
-  options: { value: string; label: string; disabled?: boolean }[]
+  options: { value: string; label: string }[]
   active: string[]
   onToggle: (v: string) => void
 }): JSX.Element {
@@ -63,7 +63,6 @@ function MultiToggle({
           key={o.value}
           type="button"
           aria-pressed={active.includes(o.value)}
-          disabled={o.disabled}
           onClick={() => onToggle(o.value)}
         >
           {o.label}
@@ -109,7 +108,8 @@ function MetricBody({ seg }: { seg: MetricSegment }): JSX.Element {
     const order: MetricPart[] = ['bar', 'percent', 'timer']
     update(seg.id, { parts: order.filter((p) => next.includes(p)) } as Partial<Segment>)
   }
-  const timerHidden = seg.type === 'context'
+  // Timer is only meaningful for session/week (context has no reset).
+  const showTimer = seg.type !== 'context'
 
   return (
     <div className="stack">
@@ -119,12 +119,10 @@ function MetricBody({ seg }: { seg: MetricSegment }): JSX.Element {
           options={[
             { value: 'bar', label: 'BAR' },
             { value: 'percent', label: 'PERCENT' },
-            { value: 'timer', label: 'TIMER', disabled: timerHidden },
           ]}
           active={seg.parts}
           onToggle={(v) => toggle(v as MetricPart)}
         />
-        {timerHidden && <span className="comment">timer is only meaningful for session/week</span>}
       </div>
 
       {seg.parts.includes('bar') && (
@@ -143,35 +141,19 @@ function MetricBody({ seg }: { seg: MetricSegment }): JSX.Element {
               }
             />
           </label>
-          <label className="field">
-            <span className="label">fill</span>
-            <input
-              className="text-input"
-              style={{ width: 54 }}
-              maxLength={1}
-              value={seg.barChars.filled}
-              onChange={(e) =>
-                update(seg.id, {
-                  barChars: { ...seg.barChars, filled: e.target.value || '█' },
-                } as Partial<Segment>)
-              }
-            />
-          </label>
-          <label className="field">
-            <span className="label">empty</span>
-            <input
-              className="text-input"
-              style={{ width: 54 }}
-              maxLength={1}
-              value={seg.barChars.empty}
-              onChange={(e) =>
-                update(seg.id, {
-                  barChars: { ...seg.barChars, empty: e.target.value || '░' },
-                } as Partial<Segment>)
-              }
-            />
-          </label>
         </div>
+      )}
+
+      {showTimer && (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={seg.parts.includes('timer')}
+            onChange={() => toggle('timer')}
+          />
+          <span className="box" />
+          <span>timer <span className="comment">(countdown to reset)</span></span>
+        </label>
       )}
 
       <StyleControl
@@ -366,6 +348,15 @@ function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
             }
           />
         )}
+        {seg.label?.show && (
+          <StyleControl
+            label="label"
+            style={seg.label.style}
+            onChange={(s) =>
+              update(seg.id, { label: { ...seg.label!, style: s } } as Partial<Segment>)
+            }
+          />
+        )}
       </div>
 
       {/* Emoji — purely per-element: no global gate. */}
@@ -397,8 +388,8 @@ function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
         )}
       </div>
 
-      {/* Prefix / suffix */}
-      <div className="row-flex" style={{ gap: 12 }}>
+      {/* Prefix — color disclosure shows only once the affix is non-empty. */}
+      <div className="stack-2">
         <label className="field">
           <span className="label">prefix</span>
           <input
@@ -408,6 +399,17 @@ function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
             onChange={(e) => update(seg.id, { prefix: e.target.value || undefined } as Partial<Segment>)}
           />
         </label>
+        {(seg.prefix ?? '') !== '' && (
+          <StyleControl
+            label="prefix"
+            style={seg.prefixStyle}
+            onChange={(s) => update(seg.id, { prefixStyle: s } as Partial<Segment>)}
+          />
+        )}
+      </div>
+
+      {/* Suffix — same: color disclosure gated on a non-empty affix. */}
+      <div className="stack-2">
         <label className="field">
           <span className="label">suffix</span>
           <input
@@ -417,6 +419,13 @@ function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
             onChange={(e) => update(seg.id, { suffix: e.target.value || undefined } as Partial<Segment>)}
           />
         </label>
+        {(seg.suffix ?? '') !== '' && (
+          <StyleControl
+            label="suffix"
+            style={seg.suffixStyle}
+            onChange={(s) => update(seg.id, { suffixStyle: s } as Partial<Segment>)}
+          />
+        )}
       </div>
     </div>
   )
@@ -475,6 +484,7 @@ export function ElementInspector({ seg }: { seg: Segment }): JSX.Element {
           <span>enabled</span>
         </label>
       </div>
+      <span className="comment">{SEGMENTS[seg.type].description}</span>
       {note && <span className="comment">{note.replace(/^\/\/\s*/, '')}</span>}
       {body}
       {showAffix && <LabelEmojiAffix seg={seg} />}

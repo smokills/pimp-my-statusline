@@ -51,6 +51,7 @@ export function isReAddable(type: SegmentType): boolean {
 export interface LibraryEntry {
   type: SegmentType
   label: string
+  description: string
   metric: boolean
   category: Category
 }
@@ -59,6 +60,7 @@ export function libraryEntries(): LibraryEntry[] {
   return (Object.keys(SEGMENTS) as SegmentType[]).map((type) => ({
     type,
     label: SEGMENTS[type].label,
+    description: SEGMENTS[type].description,
     metric: SEGMENTS[type].metric,
     category: CATEGORY_OF[type],
   }))

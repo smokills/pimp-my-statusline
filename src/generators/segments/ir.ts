@@ -33,9 +33,9 @@ export function decorate(
   if (seg.label?.show && seg.label.text) {
     out.push({ span: concreteSpan([lit(seg.label.text + ' ')], seg.label.style) })
   }
-  if (seg.prefix) out.push({ span: concreteSpan([lit(seg.prefix)], undefined) })
+  if (seg.prefix) out.push({ span: concreteSpan([lit(seg.prefix)], seg.prefixStyle) })
   out.push(...valueSpans)
-  if (seg.suffix) out.push({ span: concreteSpan([lit(seg.suffix)], undefined) })
+  if (seg.suffix) out.push({ span: concreteSpan([lit(seg.suffix)], seg.suffixStyle) })
   return out
 }
 

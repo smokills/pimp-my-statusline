@@ -16,6 +16,16 @@ export function buildMaximalConfig(petEnabled: boolean): StatuslineConfig {
     ...SEGMENTS[t].defaults(),
     id: t,
   })) as Segment[]
+  // Exercise styled affixes through the parity matrix: give the directory
+  // segment a styled label + prefix/suffix with distinct ansi16 colors, so the
+  // generated bash/python/node all bake those affix SGR params and must match
+  // renderToAnsi byte-for-byte.
+  const dir = segments.find((s) => s.type === 'directory')!
+  dir.label = { text: 'dir', show: true, style: { color: { kind: 'ansi16', code: 36 } } }
+  dir.prefix = '['
+  dir.prefixStyle = { color: { kind: 'ansi16', code: 34 } }
+  dir.suffix = ']'
+  dir.suffixStyle = { color: { kind: 'ansi16', code: 35 }, bold: true }
   return {
     version: 1,
     language: 'bash',

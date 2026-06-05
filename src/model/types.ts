@@ -97,6 +97,9 @@ export interface SegmentBase {
   emoji?: { glyph: string; show: boolean }
   prefix?: string // literal text before the value
   suffix?: string // literal text after the value
+  // Styles for the literal affix text; label color already lives in label.style.
+  prefixStyle?: TextStyle
+  suffixStyle?: TextStyle
   // Overrides the row's joiner for the join IMMEDIATELY BEFORE this segment.
   // Approved mechanism for byte-faithful spacing: the default preset's row 3
   // joins major groups with two spaces but joins model→effort→context with a

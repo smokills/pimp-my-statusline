@@ -47,6 +47,7 @@ export type HelperId =
 export interface SegmentDef {
   type: SegmentType
   label: string // UI display name
+  description: string // one-liner: what this element shows
   sources: string[] // JSON paths this segment reads
   metric: boolean // gauge-capable?
   emojiDefault?: string
@@ -86,9 +87,9 @@ function decorate(
   if (seg.label?.show && seg.label.text) {
     spans.push(span(seg.label.text + ' ', seg.label.style))
   }
-  if (seg.prefix) spans.push(span(seg.prefix))
+  if (seg.prefix) spans.push(span(seg.prefix, seg.prefixStyle))
   spans.push(...valueSpans)
-  if (seg.suffix) spans.push(span(seg.suffix))
+  if (seg.suffix) spans.push(span(seg.suffix, seg.suffixStyle))
   return { spans }
 }
 
@@ -375,6 +376,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   directory: {
     type: 'directory',
     label: 'Directory',
+    description: 'your current working directory, shortened to taste',
     sources: ['cwd', 'workspace.current_dir'],
     metric: false,
     defaults: directoryDefaults,
@@ -385,6 +387,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   gitBranch: {
     type: 'gitBranch',
     label: 'Git branch',
+    description: 'the checked-out git branch (empty outside a repo)',
     sources: ['_gitBranch'],
     metric: false,
     defaults: () => simpleDefaults('gitBranch'),
@@ -394,6 +397,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   model: {
     type: 'model',
     label: 'Model',
+    description: "the active Claude model's display name",
     sources: ['model.display_name'],
     metric: false,
     defaults: () => simpleDefaults('model'),
@@ -403,6 +407,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   effort: {
     type: 'effort',
     label: 'Effort',
+    description: 'the reasoning-effort level, when the model reports one',
     sources: ['effort.level'],
     metric: false,
     defaults: () => simpleDefaults('effort'),
@@ -412,6 +417,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   context: {
     type: 'context',
     label: 'Context',
+    description: 'how full the context window is (% of tokens used)',
     sources: ['context_window.used_percentage'],
     metric: true,
     defaults: () => metricDefaults('context', 'Context', ['percent']),
@@ -421,6 +427,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   session: {
     type: 'session',
     label: 'Session (5h)',
+    description: '5-hour rate-limit usage, with a countdown to the reset',
     sources: [
       'rate_limits.five_hour.used_percentage',
       'rate_limits.five_hour.resets_at',
@@ -434,6 +441,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   week: {
     type: 'week',
     label: 'Week (7d)',
+    description: '7-day rate-limit usage, with a countdown to the reset',
     sources: [
       'rate_limits.seven_day.used_percentage',
       'rate_limits.seven_day.resets_at',
@@ -446,6 +454,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   cost: {
     type: 'cost',
     label: 'Cost',
+    description: 'what this session has cost so far, in USD',
     sources: ['cost.total_cost_usd'],
     metric: false,
     defaults: () => simpleDefaults('cost'),
@@ -455,6 +464,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   duration: {
     type: 'duration',
     label: 'Duration',
+    description: 'wall-clock duration of the session',
     sources: ['cost.total_duration_ms'],
     metric: false,
     defaults: () => simpleDefaults('duration'),
@@ -464,6 +474,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   lines: {
     type: 'lines',
     label: 'Lines changed',
+    description: 'lines of code added / removed this session',
     sources: ['cost.total_lines_added', 'cost.total_lines_removed'],
     metric: false,
     defaults: linesDefaults,
@@ -473,6 +484,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   outputStyle: {
     type: 'outputStyle',
     label: 'Output style',
+    description: "the active output style's name",
     sources: ['output_style.name'],
     metric: false,
     defaults: () => simpleDefaults('outputStyle'),
@@ -482,6 +494,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   vimMode: {
     type: 'vimMode',
     label: 'Vim mode',
+    description: 'the current vim editing mode (when vim bindings are on)',
     sources: ['vim.mode'],
     metric: false,
     defaults: () => simpleDefaults('vimMode'),
@@ -491,6 +504,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   sessionName: {
     type: 'sessionName',
     label: 'Session name',
+    description: "the session's name, when one is set",
     sources: ['session_name'],
     metric: false,
     defaults: () => simpleDefaults('sessionName'),
@@ -500,6 +514,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   agent: {
     type: 'agent',
     label: 'Agent',
+    description: "the running subagent's name, when one is active",
     sources: ['agent.name'],
     metric: false,
     defaults: () => simpleDefaults('agent'),
@@ -509,6 +524,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   pr: {
     type: 'pr',
     label: 'Pull request',
+    description: 'the open pull request number (and review state)',
     sources: ['pr.number', 'pr.review_state'],
     metric: false,
     defaults: prDefaults,
@@ -518,6 +534,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   thinking: {
     type: 'thinking',
     label: 'Thinking',
+    description: 'shown while extended thinking is enabled',
     sources: ['thinking.enabled'],
     metric: false,
     defaults: () => simpleDefaults('thinking'),
@@ -527,6 +544,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   version: {
     type: 'version',
     label: 'Version',
+    description: 'the Claude Code version',
     sources: ['version'],
     metric: false,
     defaults: () => simpleDefaults('version'),
@@ -536,6 +554,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   worktree: {
     type: 'worktree',
     label: 'Worktree',
+    description: 'the git worktree name, when working in one',
     sources: ['worktree.name'],
     metric: false,
     defaults: () => simpleDefaults('worktree'),
@@ -545,6 +564,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   separator: {
     type: 'separator',
     label: 'Separator',
+    description: 'a horizontal rule between rows',
     sources: ['_columns'],
     metric: false,
     defaults: separatorDefaults,
@@ -555,6 +575,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
   staticText: {
     type: 'staticText',
     label: 'Static text',
+    description: 'a literal text snippet of your choosing',
     sources: [],
     metric: false,
     defaults: staticTextDefaults,
