@@ -40,29 +40,3 @@ One declarative config drives both the in-browser renderer and the three code ge
 ```
 
 The export panel adds `"refreshInterval": 10` to the snippet when your statusline shows time-based data (reset countdowns).
-
-## Development
-
-```bash
-npm install
-npm run dev        # workbench at http://localhost:5173/pimp-my-statusline/
-npm test           # unit + pet invariants + full execution-parity matrix
-npm run build      # production build (deployed to GitHub Pages by CI)
-```
-
-Requires `bash`, `python3`, `node` and `jq` on PATH for the parity tests.
-
-### How it's put together
-
-```
-src/model/       StatuslineConfig, the single source of truth: segment
-                 registry with shared evaluate() semantics, zod schema,
-                 mock-session presets, re-import marker
-src/pets/        pet roster + pure runtime (mood selection, colorize,
-                 compose) with build-gate grid invariants
-src/preview/     config + mock → ANSI string → HTML; the canonical bytes
-src/generators/  config → readable bash / python / node scripts that
-                 reproduce the preview byte-for-byte
-src/ui/          the landing page + builder workbench (React + zustand + dnd-kit)
-tests/golden/    committed .ansi snapshots (trailing whitespace matters!)
-```
