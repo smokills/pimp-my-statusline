@@ -240,20 +240,26 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const resetVar = `_${u}_reset`
   const timerVar = seg.type === 'context' ? null : `_${u}_timer`
 
-  lines.push(`if ${pyObjPresent(metricSourcePath(m))}:`)
-  lines.push(`    ${pVar} = int(float(${getExpr(metricPctPath(m))} or 0))`)
-  lines.push(`    ${pVar} = 0 if ${pVar} < 0 else (100 if ${pVar} > 100 else ${pVar})`)
+  // Only context gates on source presence. session/week always render: an
+  // absent rate_limits bucket makes the .get chain yield None, so
+  // float(None or 0) → 0 and the reset is None ⇒ timer omitted (the
+  // fresh-session default state — see metricSource()).
+  const gated = m === 'context'
+  const bi = gated ? '    ' : '' // body indent
+  const body: string[] = []
+  body.push(`${bi}${pVar} = int(float(${getExpr(metricPctPath(m))} or 0))`)
+  body.push(`${bi}${pVar} = 0 if ${pVar} < 0 else (100 if ${pVar} > 100 else ${pVar})`)
   if (seg.parts.includes('bar')) {
-    lines.push(
-      `    ${barVar} = bar(${pVar}, ${seg.barWidth}, ${pyStr(seg.barChars.filled)}, ${pyStr(seg.barChars.empty)})`,
+    body.push(
+      `${bi}${barVar} = bar(${pVar}, ${seg.barWidth}, ${pyStr(seg.barChars.filled)}, ${pyStr(seg.barChars.empty)})`,
     )
   }
   if (seg.parts.includes('percent')) {
-    lines.push(`    ${pctTextVar} = f'{${pVar}}%'`)
+    body.push(`${bi}${pctTextVar} = f'{${pVar}}%'`)
   }
   if (timerVar && seg.parts.includes('timer')) {
-    lines.push(`    ${resetVar} = ${getExpr(metricResetPath(m))}`)
-    lines.push(`    ${timerVar} = time_until(int(${resetVar}), NOW) if ${resetVar} is not None else ''`)
+    body.push(`${bi}${resetVar} = ${getExpr(metricResetPath(m))}`)
+    body.push(`${bi}${timerVar} = time_until(int(${resetVar}), NOW) if ${resetVar} is not None else ''`)
   }
   const valueSpans = metricValueSpans(seg, {
     pctVar: pVar,
@@ -262,9 +268,16 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     timerVar: seg.parts.includes('timer') ? timerVar : null,
     colorFnName: ctx.colorFnName,
   })
-  lines.push(...assignSpans(out, decorate(seg, valueSpans), '    '))
-  lines.push('else:')
-  lines.push(`    ${out} = ''`)
+  body.push(...assignSpans(out, decorate(seg, valueSpans), bi))
+
+  if (gated) {
+    lines.push(`if ${pyObjPresent(metricSourcePath(m))}:`)
+    lines.push(...body)
+    lines.push('else:')
+    lines.push(`    ${out} = ''`)
+  } else {
+    lines.push(...body)
+  }
   return lines
 }
 

@@ -115,9 +115,9 @@ export function renderRowsToAnsi(config: StatuslineConfig, mock: MockData): stri
 /**
  * Percentage that drives the pet's mood, mirroring metricSource() semantics but
  * with the pet's "always renders" rule: if the source OBJECT is absent, treat
- * pct as 0 (the pet still renders, at its lowest mood — a design decision, vs
- * metric SEGMENTS which drop on absence). truncPct matches the displayed
- * truncation everywhere.
+ * pct as 0 (the pet still renders, at its lowest mood — same default-to-zero
+ * rule session/week segments follow; only context drops on absence). truncPct
+ * matches the displayed truncation everywhere.
  */
 function petPercent(metric: StatuslineConfig['pet']['metric'], mock: MockData): number {
   if (metric === 'context') {

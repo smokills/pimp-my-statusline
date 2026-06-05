@@ -83,26 +83,46 @@ describe('joinBefore join bytes on row3', () => {
 // ---------------------------------------------------------------------------
 
 describe('absence — fresh / noRateLimits', () => {
-  it('noRateLimits: session/week dropped, no dangling joiner around them', () => {
+  // session/week now render even when rate_limits is absent: a fresh session
+  // must already show them at 0% (bar empty, "0%", NO timer — no reset). The
+  // 0% value spans take the threshold@0 green (ansi16 32); labels keep cyan(36)
+  // / magenta(35). The session timer part is omitted (resetsAt null), so the
+  // join before week is the row joiner immediately after the session percent.
+  const SESSION_0 =
+    `${ESC}[36mSession ${ESC}[0m` + // label cyan(36)
+    `${ESC}[32m░░░░░${ESC}[0m` + // bar 0% empty, green(32)
+    ` ` +
+    `${ESC}[32m0%${ESC}[0m` // percent green(32); timer omitted
+  const WEEK_0 =
+    `${ESC}[35mWeek ${ESC}[0m` + // label magenta(35)
+    `${ESC}[32m░░░░░${ESC}[0m` + // bar 0% empty, green(32)
+    ` ` +
+    `${ESC}[32m0%${ESC}[0m` // percent green(32)
+
+  it('noRateLimits: session/week render at 0% with no timer', () => {
     const row3 = renderToAnsi(defaultConfig(), noRateLimits())[2]
-    // context present (28%), session+week dropped — row ends at context.
-    expect(row3).not.toContain('Session')
-    expect(row3).not.toContain('Week')
+    // context present (28%), then session/week at the fresh-session default.
     expect(row3).toContain(`28%${ESC}[0m`)
-    expect(row3.endsWith(`28%${ESC}[0m`)).toBe(true) // no trailing joiner
-    expect(row3).not.toContain(`${ESC}[0m    ${ESC}`) // no 4-space gap
+    expect(row3).toContain('Session')
+    expect(row3).toContain('Week')
+    expect(row3).not.toContain('(') // no timer parens (no reset)
+    // 28% then a two-space joiner into the 0% session, then into the 0% week.
+    expect(row3.endsWith(`28%${ESC}[0m  ${SESSION_0}  ${WEEK_0}`)).toBe(true)
   })
 
-  it('fresh: ctx null→0%, no rate_limits; row3 has model/context only', () => {
+  it('fresh: ctx null→0%, no rate_limits; session/week render at 0%', () => {
     const row3 = renderToAnsi(defaultConfig(), fresh())[2]
     // fresh has no effort → effort dropped. ctx present-null → 0%.
     expect(row3).not.toContain('high')
     expect(row3).toContain(`${ESC}[32m0%${ESC}[0m`)
-    expect(row3).not.toContain('Session')
-    expect(row3).not.toContain('Week')
+    expect(row3).toContain('Session')
+    expect(row3).toContain('Week')
+    expect(row3).not.toContain('(') // no timer parens (no reset)
     // model joins directly to context with a single space (effort dropped, and
-    // context's joinBefore=' ' governs the join immediately before it).
+    // context's joinBefore=' ' governs the join immediately before it); then
+    // the two-space joiner into session/week at 0%.
     expect(row3).toContain(`Opus${ESC}[0m ${ESC}[32m0%`)
+    expect(row3.endsWith(`${ESC}[32m0%${ESC}[0m  ${SESSION_0}  ${WEEK_0}`)).toBe(true)
   })
 
   it('a row whose segments all drop/disable STILL emits an empty line', () => {

@@ -2,7 +2,8 @@
 // sim-only fields (prefixed `_`) used by the preview. Optional fields are
 // GENUINELY optional so we can model "key absent" distinctly from "key null":
 // the design's edge-cases hinge on this (rate_limits absent ⇒ session/week
-// segments are dropped; used_percentage null but the object present ⇒ 0%).
+// render their 0% default state, fresh-session friendly; used_percentage null
+// but the object present ⇒ 0%).
 
 export interface MockModel {
   id: string

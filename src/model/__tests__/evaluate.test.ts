@@ -39,8 +39,19 @@ describe('metric absence vs null', () => {
   const context = SEGMENTS.context.defaults() as Omit<MetricSegment, 'id'>
   const contextSeg: MetricSegment = { ...context, id: 'c' }
 
-  it('rate_limits absent → session dropped', () => {
-    expect(evaluateSegment(sessionSeg, buildMock()).spans).toEqual([])
+  it('rate_limits absent → session renders at 0% (fresh-session default)', () => {
+    // A freshly started session has no rate-limit data yet; Session/Week must
+    // still be visible. Default state: bar empty, "0%", timer omitted (no reset).
+    expect(text(sessionSeg, buildMock())).toBe('Session ░░░░░ 0%')
+  })
+  it('rate_limits present but bucket absent → 0%, timer omitted', () => {
+    // five_hour bucket missing under a present rate_limits ⇒ same default state
+    // (timer omitted even though session has a timer part).
+    const mock = buildMock({
+      _now: 1000,
+      rate_limits: { seven_day: { used_percentage: 41, resets_at: 1000 + 7200 } },
+    })
+    expect(text(sessionSeg, mock)).toBe('Session ░░░░░ 0%')
   })
   it('context_window absent → context dropped', () => {
     expect(evaluateSegment(contextSeg, buildMock()).spans).toEqual([])

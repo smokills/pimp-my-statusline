@@ -227,22 +227,27 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const resetVar = `_${u}_reset`
   const timerVar = seg.type === 'context' ? null : `_${u}_timer`
 
-  lines.push(`${I}let ${out} = "";`)
-  lines.push(`${I}if (${nodeObjPresent(metricSourcePath(m))}) {`)
-  lines.push(`${I}  let ${pVar} = Math.trunc(Number(${nodeAccess(metricPctPath(m))}) || 0);`)
-  lines.push(`${I}  ${pVar} = ${pVar} < 0 ? 0 : (${pVar} > 100 ? 100 : ${pVar});`)
+  // Only context gates on source presence. session/week always render: an
+  // absent rate_limits bucket makes the optional-chain access undefined, so
+  // Number(...)||0 → 0 and the reset is undefined ⇒ timer omitted (the
+  // fresh-session default state — see metricSource()).
+  const gated = m === 'context'
+  const bi = gated ? I + '  ' : I // body indent
+  const body: string[] = []
+  body.push(`${bi}let ${pVar} = Math.trunc(Number(${nodeAccess(metricPctPath(m))}) || 0);`)
+  body.push(`${bi}${pVar} = ${pVar} < 0 ? 0 : (${pVar} > 100 ? 100 : ${pVar});`)
   if (seg.parts.includes('bar')) {
-    lines.push(
-      `${I}  const ${barVar} = bar(${pVar}, ${seg.barWidth}, ${jsStr(seg.barChars.filled)}, ${jsStr(seg.barChars.empty)});`,
+    body.push(
+      `${bi}const ${barVar} = bar(${pVar}, ${seg.barWidth}, ${jsStr(seg.barChars.filled)}, ${jsStr(seg.barChars.empty)});`,
     )
   }
   if (seg.parts.includes('percent')) {
-    lines.push(`${I}  const ${pctTextVar} = ${pVar} + "%";`)
+    body.push(`${bi}const ${pctTextVar} = ${pVar} + "%";`)
   }
   if (timerVar && seg.parts.includes('timer')) {
-    lines.push(`${I}  const ${resetVar} = ${nodeAccess(metricResetPath(m))};`)
-    lines.push(
-      `${I}  const ${timerVar} = (${resetVar} !== undefined && ${resetVar} !== null) ? time_until(Number(${resetVar}), NOW) : "";`,
+    body.push(`${bi}const ${resetVar} = ${nodeAccess(metricResetPath(m))};`)
+    body.push(
+      `${bi}const ${timerVar} = (${resetVar} !== undefined && ${resetVar} !== null) ? time_until(Number(${resetVar}), NOW) : "";`,
     )
   }
   const valueSpans = metricValueSpans(seg, {
@@ -252,8 +257,17 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     timerVar: seg.parts.includes('timer') ? timerVar : null,
     colorFnName: ctx.colorFnName,
   })
-  lines.push(...assignSpansAt(out, decorate(seg, valueSpans), I + '  ', true))
-  lines.push(`${I}}`)
+
+  if (gated) {
+    lines.push(`${I}let ${out} = "";`)
+    lines.push(`${I}if (${nodeObjPresent(metricSourcePath(m))}) {`)
+    lines.push(...body)
+    lines.push(...assignSpansAt(out, decorate(seg, valueSpans), I + '  ', true))
+    lines.push(`${I}}`)
+  } else {
+    lines.push(...body)
+    lines.push(...assignSpansAt(out, decorate(seg, valueSpans), I, false))
+  }
   return lines
 }
 

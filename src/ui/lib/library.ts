@@ -83,7 +83,7 @@ export function absenceNote(type: SegmentType): string | null {
   switch (type) {
     case 'session':
     case 'week':
-      return '// only present for Pro/Max subscribers (rate limits)'
+      return '// shows 0% until rate-limit data arrives (Pro/Max)'
     case 'gitBranch':
       return '// only inside a git repo'
     case 'pr':

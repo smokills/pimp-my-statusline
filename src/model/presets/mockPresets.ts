@@ -95,7 +95,7 @@ export function noRateLimits(): MockData {
       remaining_percentage: 72,
       current_usage: null,
     },
-    // rate_limits ABSENT — session/week segments must drop.
+    // rate_limits ABSENT — session/week render their 0% default state.
   })
 }
 

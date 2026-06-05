@@ -168,7 +168,12 @@ function collectFields(config: StatuslineConfig, uidOf: (seg: Segment) => string
         case 'session':
         case 'week': {
           const m = seg.type as MetricType
-          push(`EX_${u}_has`, jqFlag(jqHas(metricSourcePath(m))), `${SEGMENT_COMMENT[m]} present`)
+          // Only context gates on source presence; session/week always render
+          // (fresh-session default: pct 0, no reset — see metricSource()). The
+          // `// 0` extraction already yields 0 when rate_limits is absent.
+          if (m === 'context') {
+            push(`EX_${u}_has`, jqFlag(jqHas(metricSourcePath(m))), `${SEGMENT_COMMENT[m]} present`)
+          }
           push(`EX_${u}_p`, `(${jqPath(metricPctPath(m))} // 0 | floor)`, `${SEGMENT_COMMENT[m]} %`)
           if (m !== 'context' && (seg as MetricSegment).parts.includes('timer')) {
             push(`EX_${u}_reset`, `(${jqPath(metricResetPath(m))} // "")`, `${SEGMENT_COMMENT[m]} reset`)
@@ -392,19 +397,24 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const pctTextVar = `_${u}_pct`
   const timerVar = seg.type === 'context' ? null : `_${u}_timer`
 
-  lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
-  lines.push(`  ${pVar}="$EX_${u}_p"`)
-  lines.push(`  [ "$${pVar}" -lt 0 ] && ${pVar}=0; [ "$${pVar}" -gt 100 ] && ${pVar}=100`)
+  // Only context gates on source presence. session/week always render: an
+  // absent rate_limits leaves EX_<u>_p at 0 (// 0) and EX_<u>_reset empty (// "")
+  // ⇒ default state (bar empty, "0%", timer omitted). The body is otherwise
+  // identical; gated lines just carry an extra indent.
+  const gated = seg.type === 'context'
+  const body: string[] = []
+  body.push(`${pVar}="$EX_${u}_p"`)
+  body.push(`[ "$${pVar}" -lt 0 ] && ${pVar}=0; [ "$${pVar}" -gt 100 ] && ${pVar}=100`)
   if (seg.parts.includes('bar')) {
-    lines.push(
-      `  ${barVar}=$(bar "$${pVar}" ${seg.barWidth} '${sq(seg.barChars.filled)}' '${sq(seg.barChars.empty)}')`,
+    body.push(
+      `${barVar}=$(bar "$${pVar}" ${seg.barWidth} '${sq(seg.barChars.filled)}' '${sq(seg.barChars.empty)}')`,
     )
   }
   if (seg.parts.includes('percent')) {
-    lines.push(`  ${pctTextVar}="$${pVar}%"`)
+    body.push(`${pctTextVar}="$${pVar}%"`)
   }
   if (timerVar && seg.parts.includes('timer')) {
-    lines.push(`  if [ -n "$EX_${u}_reset" ]; then ${timerVar}=$(time_until "$EX_${u}_reset" "$NOW"); else ${timerVar}=''; fi`)
+    body.push(`if [ -n "$EX_${u}_reset" ]; then ${timerVar}=$(time_until "$EX_${u}_reset" "$NOW"); else ${timerVar}=''; fi`)
   }
 
   const valueSpans = metricValueSpans(seg, {
@@ -414,10 +424,17 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     timerVar: seg.parts.includes('timer') ? timerVar : null,
     colorFnName: ctx.colorFnName,
   })
-  lines.push(...indent(assignSpans(out, decorate(seg, valueSpans))))
-  lines.push('else')
-  lines.push(`  ${out}=''`)
-  lines.push('fi')
+  body.push(...assignSpans(out, decorate(seg, valueSpans)))
+
+  if (gated) {
+    lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
+    lines.push(...indent(body))
+    lines.push('else')
+    lines.push(`  ${out}=''`)
+    lines.push('fi')
+  } else {
+    lines.push(...body)
+  }
   return lines
 }
 

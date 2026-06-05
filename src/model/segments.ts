@@ -6,8 +6,10 @@
 //
 // Absence semantics: when a segment's required source is absent, evaluate()
 // returns `{ spans: [] }` so the row join drops it cleanly (no dangling joiner).
-// "Absent" (key missing) and "null" are distinct: e.g. context_window present
-// with used_percentage null ⇒ render 0%, but context_window absent ⇒ dropped.
+// EXCEPTION: session/week render a 0% default state when rate-limit data is
+// absent (fresh sessions have none yet — see metricSource). "Absent" (key
+// missing) and "null" are distinct: e.g. context_window present with
+// used_percentage null ⇒ render 0%, but context_window absent ⇒ dropped.
 
 import type {
   DirectorySegment,
@@ -115,7 +117,14 @@ export function defaultThresholdStops(): ThresholdStop[] {
 // ---------------------------------------------------------------------------
 
 /** Resolve the percentage + reset for a metric segment from the mock.
- *  Returns null when the SOURCE OBJECT is absent (⇒ segment dropped). */
+ *  Returns null only for context when its SOURCE OBJECT is absent (⇒ dropped).
+ *
+ *  Session/week NEVER return null: a freshly started Claude Code session has
+ *  taken no action yet, so the stdin JSON carries no rate-limit data — but the
+ *  user expects Session (5h) and Week (7d) to already be visible. Absent
+ *  rate_limits (or an absent bucket) therefore reads as the default state
+ *  { pct: 0, resetsAt: null }: bar empty, "0%", timer omitted (no reset). The
+ *  segments render from the very first frame and fill in once data arrives. */
 function metricSource(
   type: 'context' | 'session' | 'week',
   mock: MockData,
@@ -127,9 +136,10 @@ function metricSource(
   }
   const bucket =
     type === 'session' ? mock.rate_limits?.five_hour : mock.rate_limits?.seven_day
-  if (bucket === undefined) return null
-  // `?? null`: a malformed bucket with no resets_at must read as "no reset"
-  // (timer dropped), never as NaN reaching timeUntil.
+  // Absent rate_limits / absent bucket ⇒ default state (pct 0, no reset). The
+  // `?? null` also covers a malformed present bucket with no resets_at, so a
+  // missing reset reads as "no reset" (timer dropped), never NaN to timeUntil.
+  if (bucket === undefined) return { pct: 0, resetsAt: null }
   return { pct: truncPct(bucket.used_percentage), resetsAt: bucket.resets_at ?? null }
 }
 
