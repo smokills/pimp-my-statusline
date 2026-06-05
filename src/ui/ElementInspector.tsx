@@ -1,6 +1,6 @@
 // ElementInspector — the ELEMENT tab. Renders the variant + style controls for
 // the selected segment, derived from its shape. Variant toggles, dir style,
-// lines style, pr showState, separator fill/width, static text, label editor,
+// lines style, pr showState, separator width, static text, label editor,
 // emoji, prefix/suffix, color controls, and absence notes (from the registry).
 
 import type { JSX } from 'react'
@@ -268,16 +268,6 @@ function SeparatorBody({ seg }: { seg: SeparatorSegment }): JSX.Element {
   return (
     <div className="stack">
       <div className="row-flex" style={{ gap: 12 }}>
-        <label className="field">
-          <span className="label">fill</span>
-          <input
-            className="text-input"
-            style={{ width: 54 }}
-            maxLength={1}
-            value={seg.fill}
-            onChange={(e) => update(seg.id, { fill: e.target.value || '─' } as Partial<Segment>)}
-          />
-        </label>
         <label className="check">
           <input
             type="checkbox"
