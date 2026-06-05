@@ -100,11 +100,18 @@ function decorate(
  *  defaultPreset (segment value styles) and GlobalOptions.defaultThresholds.
  *  Matches the user's script color(): >=90 red(31), >=70 yellow(33), else
  *  green(32); ansi16 codes for byte-faithfulness. */
-export const DEFAULT_THRESHOLD_STOPS: ThresholdStop[] = [
+export const DEFAULT_THRESHOLD_STOPS: readonly Readonly<ThresholdStop>[] = [
   { at: 90, code: 31, ansi16: true },
   { at: 70, code: 33, ansi16: true },
   { at: 0, code: 32, ansi16: true },
 ]
+
+/** Fresh deep copy for embedding into configs. Configs are edited in place by
+ *  the UI; sharing one array instance across segments would make a threshold
+ *  edit on one segment bleed into the others. */
+export function defaultThresholdStops(): ThresholdStop[] {
+  return DEFAULT_THRESHOLD_STOPS.map((s) => ({ ...s }))
+}
 
 // ---------------------------------------------------------------------------
 // Metric segments (context / session / week)
@@ -349,7 +356,7 @@ function metricDefaults(
     parts,
     barWidth: 5,
     barChars: { filled: '█', empty: '░' },
-    valueStyle: { color: { kind: 'threshold', stops: DEFAULT_THRESHOLD_STOPS } },
+    valueStyle: { color: { kind: 'threshold', stops: defaultThresholdStops() } },
   }
 }
 

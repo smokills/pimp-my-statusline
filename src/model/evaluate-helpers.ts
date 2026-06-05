@@ -66,9 +66,13 @@ export function fmtDuration(ms: number): string {
  *             decimal LITERAL, so 2.675→'2.68' ✗ where printf yields '2.67').
  *
  * printf rounds the binary double, so e.g. 2.675 is really 2.67499…824 → 2.67.
- * We reproduce that by taking the exact decimal expansion of the double
- * (`toFixed(30)` is exact for a double's representable value), then rounding at
- * the 2nd decimal ties-to-even. Verified byte-identical to `LC_NUMERIC=C
+ * We reproduce that by taking the decimal expansion of the double via
+ * `toFixed(30)` — NOT the full expansion (true expansions run 40-60 fractional
+ * digits), but its ~1e-30 rounding error sits far below any digit that can
+ * influence the 2nd-decimal rounding decision for bounded cost values, and it
+ * cannot fabricate or destroy an exact …5000…0 tie (ties only occur for
+ * dyadic doubles whose expansions terminate well before 30 places). Then we
+ * round at the 2nd decimal ties-to-even. Verified byte-identical to `LC_NUMERIC=C
  * printf '%.2f'` across 0.125/0.135/2.675/2.685/0.005/0.015/0.025/0.035/1.005/
  * 12.875/0.999/1.999/99.995/0.42/0.
  */
@@ -77,8 +81,8 @@ export function fmtCost(usd: number): string {
   const neg = usd < 0
   const abs = Math.abs(usd)
 
-  // Exact decimal digits of the double (no rounding artifact: toFixed yields
-  // the binary value's exact decimal expansion up to the requested places).
+  // Decimal digits of the double to 30 places — deep enough that the
+  // 2nd-decimal rounding decision is unaffected (see docstring).
   const exact = abs.toFixed(30)
   const dot = exact.indexOf('.')
   const intPart = exact.slice(0, dot)

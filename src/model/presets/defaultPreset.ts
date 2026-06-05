@@ -24,12 +24,13 @@ import type {
   StatuslineConfig,
 } from '../types'
 import { DEFAULT_PET_THRESHOLDS } from '../../pets/types'
-import { DEFAULT_THRESHOLD_STOPS } from '../segments'
+import { defaultThresholdStops } from '../segments'
 
 // Canonical threshold triplet (>=90 red(31) / >=70 yellow(33) / else green(32),
-// ansi16). Imported from the registry so it can never drift from the segment
-// defaults — single source of truth.
-const THRESHOLD_ANSI16 = DEFAULT_THRESHOLD_STOPS
+// ansi16) comes from the registry so it can never drift from the segment
+// defaults. Each embed point gets a FRESH copy via defaultThresholdStops():
+// configs are mutated in place by the UI editor, so threshold stops must never
+// share an instance across segments.
 
 export function defaultConfig(): StatuslineConfig {
   // ----- Row 1: directory + gitBranch -----
@@ -79,7 +80,7 @@ export function defaultConfig(): StatuslineConfig {
     parts: ['percent'], // percent only, NO bar
     barWidth: 5,
     barChars: { filled: '█', empty: '░' },
-    valueStyle: { color: { kind: 'threshold', stops: THRESHOLD_ANSI16 } },
+    valueStyle: { color: { kind: 'threshold', stops: defaultThresholdStops() } },
   }
   const session: MetricSegment = {
     id: 'session',
@@ -89,7 +90,7 @@ export function defaultConfig(): StatuslineConfig {
     parts: ['bar', 'percent', 'timer'],
     barWidth: 5,
     barChars: { filled: '█', empty: '░' },
-    valueStyle: { color: { kind: 'threshold', stops: THRESHOLD_ANSI16 } },
+    valueStyle: { color: { kind: 'threshold', stops: defaultThresholdStops() } },
     timerStyle: { color: { kind: 'ansi16', code: 37 }, dim: true }, // LBL_E 2;37
   }
   const week: MetricSegment = {
@@ -100,7 +101,7 @@ export function defaultConfig(): StatuslineConfig {
     parts: ['bar', 'percent'], // NO timer
     barWidth: 5,
     barChars: { filled: '█', empty: '░' },
-    valueStyle: { color: { kind: 'threshold', stops: THRESHOLD_ANSI16 } },
+    valueStyle: { color: { kind: 'threshold', stops: defaultThresholdStops() } },
   }
   const peak: PeakSegment = {
     id: 'peak',
@@ -133,11 +134,11 @@ export function defaultConfig(): StatuslineConfig {
       metric: 'context',
       position: 'left',
       gap: 1,
-      thresholds: DEFAULT_PET_THRESHOLDS,
+      thresholds: { ...DEFAULT_PET_THRESHOLDS },
     },
     global: {
       emoji: false,
-      defaultThresholds: THRESHOLD_ANSI16,
+      defaultThresholds: defaultThresholdStops(),
     },
   }
 }
