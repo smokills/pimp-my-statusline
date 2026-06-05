@@ -6,7 +6,7 @@
 
 import type { StatuslineConfig } from '../../model/types'
 import type { RowPlan } from '../types'
-import { buildPetPlan, petMetricPath, type PetPlan } from './shared'
+import { buildPetPlan, type PetPlan } from './shared'
 import { MOOD_ORDER } from '../../pets/types'
 
 /** Convert a colorized row (JS string with \x1b ESC) to a bash $'...' literal:
@@ -46,8 +46,8 @@ function emitMoodSelection(plan: PetPlan): string[] {
   const lines: string[] = []
   lines.push('# Pet mood selection (ported from selectMood: trunc + clamp + thresholds).')
   lines.push('# Bound metric absent => pct 0 (pet still renders at its lowest mood).')
-  const path = '.' + petMetricPath(plan.metric).join('.')
-  lines.push(`_pet_p=$(jq -r '${path} // 0 | floor' <<<"$input")`)
+  lines.push('# EX_pet_p was pulled in the single jq pass above.')
+  lines.push('_pet_p="$EX_pet_p"')
   lines.push('[ "$_pet_p" -lt 0 ] && _pet_p=0; [ "$_pet_p" -gt 100 ] && _pet_p=100')
 
   const hasIdle = plan.moods.some((m) => m.mood === 'idle')

@@ -162,37 +162,29 @@ describe('cross-language execution parity', () => {
     'narrow',
   ] as const
 
+  // The preview renderer is the canonical output. It exists now, so EVERY cell
+  // of the matrix verifies all three scripts == renderToAnsi (not just that the
+  // three agree with each other). Guarded so the file still works standalone.
+  const hasPreview = existsSync(join(process.cwd(), 'src/preview/renderToAnsi.ts'))
+
   for (const [cname, cfg] of Object.entries(configs)) {
     const paths = writeScripts(cfg)
     for (const mname of mockNames) {
-      it(`${cname} × ${mname}: bash == python == node`, () => {
+      it(`${cname} × ${mname}: bash == python == node${hasPreview ? ' == renderToAnsi' : ''}`, async () => {
         const mock = MOCK_PRESETS[mname]()
         const outBash = run('bash', paths.bash, mock)
         const outPy = run('python', paths.python, mock)
         const outNode = run('node', paths.node, mock)
         expect(outPy).toBe(outBash)
         expect(outNode).toBe(outBash)
+        if (hasPreview) {
+          const { renderToAnsi } = await import('../../preview/renderToAnsi')
+          const expected = renderToAnsi(cfg, mock).join('\n') + '\n'
+          expect(outBash).toBe(expected)
+        }
       })
     }
   }
-
-  // Bonus: byte-parity vs renderToAnsi for defaultConfig × typical, IF the
-  // preview renderer exists (skipped gracefully otherwise).
-  it('bonus: default × typical matches renderToAnsi (if present)', async () => {
-    const previewPath = join(process.cwd(), 'src/preview/renderToAnsi.ts')
-    if (!existsSync(previewPath)) {
-      expect(true).toBe(true)
-      return
-    }
-    const { renderToAnsi } = await import('../../preview/renderToAnsi')
-    const cfg = defaultConfig()
-    const paths = writeScripts(cfg)
-    const mock = MOCK_PRESETS.typical()
-    const expected = renderToAnsi(cfg, mock).join('\n') + '\n'
-    expect(run('bash', paths.bash, mock)).toBe(expected)
-    expect(run('python', paths.python, mock)).toBe(expected)
-    expect(run('node', paths.node, mock)).toBe(expected)
-  })
 })
 
 // ---------------------------------------------------------------------------
@@ -331,6 +323,99 @@ describe('targeted parity', () => {
     const mock = buildMock({ _now: 1769677500, _gitBranch: '' })
     const b = run('bash', paths.bash, mock)
     expect(b).toBe('Opus\n') // git dropped; only the model remains, no joiner
+    expect(run('python', paths.python, mock)).toBe(b)
+    expect(run('node', paths.node, mock)).toBe(b)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: user strings with control whitespace; duplicate same-type segs
+// ---------------------------------------------------------------------------
+
+describe('regression', () => {
+  it('user strings with newlines/tabs (staticText, joiner) — syntax + parity', () => {
+    // A staticText with a literal newline, another with a tab, and a joiner
+    // that contains a newline. The canonical output (renderToAnsi) passes the
+    // raw bytes through; all three scripts must agree (python must \n-escape
+    // its literals — the bug this guards).
+    const cfg: StatuslineConfig = {
+      version: 1,
+      language: 'bash',
+      rows: [
+        {
+          id: 'r1',
+          segments: [
+            { id: 's1', type: 'staticText', enabled: true, text: 'line1\nline2' },
+            { ...SEGMENTS.model.defaults(), id: 'model' },
+            { id: 's2', type: 'staticText', enabled: true, text: 'a\tb' },
+          ] as never,
+          joiner: 'x\ny',
+        },
+      ],
+      pet: {
+        enabled: false,
+        petId: 'cactus',
+        metric: 'context',
+        position: 'left',
+        gap: 1,
+        thresholds: { ...DEFAULT_PET_THRESHOLDS },
+      },
+      global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+    }
+    const paths = writeScripts(cfg)
+    for (const lang of LANGUAGES) {
+      const dir = mkdtempSync(join(ROOT, 'nl-'))
+      const p = join(dir, scriptFileName(lang))
+      writeFileSync(p, generate({ ...cfg, language: lang }, lang))
+      expect(() => checkSyntax(lang, p)).not.toThrow()
+    }
+    const mock = MOCK_PRESETS.typical()
+    const b = run('bash', paths.bash, mock)
+    expect(b).toContain('line1\nline2') // the newline survived as a real byte
+    expect(b).toContain('a\tb')
+    expect(run('python', paths.python, mock)).toBe(b)
+    expect(run('node', paths.node, mock)).toBe(b)
+  })
+
+  it('two same-type segments in one row (model×2, staticText×2, context×2)', () => {
+    // Distinct uids must keep temp/output vars unique (node `const` would
+    // otherwise SyntaxError on a redeclared identifier).
+    const cfg: StatuslineConfig = {
+      version: 1,
+      language: 'bash',
+      rows: [
+        {
+          id: 'r1',
+          segments: [
+            { ...SEGMENTS.model.defaults(), id: 'm1' },
+            { id: 's1', type: 'staticText', enabled: true, text: 'A' },
+            { ...SEGMENTS.model.defaults(), id: 'm2' },
+            { id: 's2', type: 'staticText', enabled: true, text: 'B' },
+            { ...SEGMENTS.context.defaults(), id: 'c1' },
+            { ...SEGMENTS.context.defaults(), id: 'c2' },
+          ] as never,
+          joiner: ' ',
+        },
+      ],
+      pet: {
+        enabled: false,
+        petId: 'cactus',
+        metric: 'context',
+        position: 'left',
+        gap: 1,
+        thresholds: { ...DEFAULT_PET_THRESHOLDS },
+      },
+      global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+    }
+    const paths = writeScripts(cfg)
+    for (const lang of LANGUAGES) {
+      const dir = mkdtempSync(join(ROOT, 'dup-'))
+      const p = join(dir, scriptFileName(lang))
+      writeFileSync(p, generate({ ...cfg, language: lang }, lang))
+      expect(() => checkSyntax(lang, p)).not.toThrow()
+    }
+    const mock = MOCK_PRESETS.typical()
+    const b = run('bash', paths.bash, mock)
     expect(run('python', paths.python, mock)).toBe(b)
     expect(run('node', paths.node, mock)).toBe(b)
   })

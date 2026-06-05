@@ -23,6 +23,13 @@ import type { PlanSpan, TextPiece } from './spanplan'
 import { concreteSpan, lit, v } from './spanplan'
 import { concreteParams } from './fragments'
 import { decorate, metricValueSpans, type ValueSpan } from './segments/ir'
+import {
+  metricPctPath,
+  metricResetPath,
+  metricSourcePath,
+  simplePath,
+  type MetricType,
+} from './segments/paths'
 import { nodeColorFn, nodeHelper, nodeSgrWrap } from './helpers/node'
 import { SEGMENT_COMMENT } from './segments/labels'
 import { emitNodePet, emitNodePetCompose } from './pets/node'
@@ -82,7 +89,7 @@ const I = '  ' // base indent inside the handler
 
 function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const tmp = `_${seg.type}`
+  const tmp = `_${ctx.uid}`
   const g = ctx.config.global.emoji
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT[seg.type]} ---`]
 
@@ -117,29 +124,6 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   }
   lines.push(...guard(tmp, out, seg, g, [v(tmp)], seg.style))
   return lines
-}
-
-function simplePath(type: SimpleSegment['type']): string[] {
-  switch (type) {
-    case 'model':
-      return ['model', 'display_name']
-    case 'effort':
-      return ['effort', 'level']
-    case 'outputStyle':
-      return ['output_style', 'name']
-    case 'vimMode':
-      return ['vim', 'mode']
-    case 'sessionName':
-      return ['session_name']
-    case 'agent':
-      return ['agent', 'name']
-    case 'version':
-      return ['version']
-    case 'worktree':
-      return ['worktree', 'name']
-    default:
-      return []
-  }
 }
 
 function guard(
@@ -210,19 +194,22 @@ function assignSpansAt(
 function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const dir = `_${u}_dir`
+  const disp = `_${u}_disp`
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.directory} ---`]
-  lines.push(`${I}const _dir = _dirCwd;`)
-  lines.push(`${I}let _disp = _dir;`)
+  lines.push(`${I}const ${dir} = _dirCwd;`)
+  lines.push(`${I}let ${disp} = ${dir};`)
   if (seg.dirStyle === 'basename') {
-    lines.push(`${I}{ const _p = _disp.replace(/\\/+$/, "").split("/"); _disp = _p[_p.length - 1] || _dir; }`)
+    lines.push(`${I}{ const _p = ${disp}.replace(/\\/+$/, "").split("/"); ${disp} = _p[_p.length - 1] || ${dir}; }`)
   } else if (seg.dirStyle === 'tildeHome') {
     lines.push(`${I}{ const _home = process.env.HOME || "";`)
-    lines.push(`${I}  if (_disp === _home) _disp = "~";`)
-    lines.push(`${I}  else if (_home && _disp.startsWith(_home + "/")) _disp = "~" + _disp.slice(_home.length); }`)
+    lines.push(`${I}  if (${disp} === _home) ${disp} = "~";`)
+    lines.push(`${I}  else if (_home && ${disp}.startsWith(_home + "/")) ${disp} = "~" + ${disp}.slice(_home.length); }`)
   }
   lines.push(`${I}let ${out} = "";`)
-  lines.push(`${I}if (_dir) {`)
-  lines.push(...assignDecorated(out, seg, g, [v('_disp')], seg.style, I + '  ', true))
+  lines.push(`${I}if (${dir}) {`)
+  lines.push(...assignDecorated(out, seg, g, [v(disp)], seg.style, I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }
@@ -230,15 +217,18 @@ function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
 function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT[seg.type]} ---`]
-  const pVar = `_${seg.type}_p`
-  const barVar = `_${seg.type}_bar`
-  const pctTextVar = `_${seg.type}_pct`
-  const timerVar = seg.type === 'context' ? null : `_${seg.type}_timer`
+  const m = seg.type as MetricType
+  const pVar = `_${u}_p`
+  const barVar = `_${u}_bar`
+  const pctTextVar = `_${u}_pct`
+  const resetVar = `_${u}_reset`
+  const timerVar = seg.type === 'context' ? null : `_${u}_timer`
 
   lines.push(`${I}let ${out} = "";`)
-  lines.push(`${I}if (${metricPresent(seg.type)}) {`)
-  lines.push(`${I}  let ${pVar} = Math.trunc(Number(${metricPct(seg.type)}) || 0);`)
+  lines.push(`${I}if (${nodeObjPresent(metricSourcePath(m))}) {`)
+  lines.push(`${I}  let ${pVar} = Math.trunc(Number(${nodeAccess(metricPctPath(m))}) || 0);`)
   lines.push(`${I}  ${pVar} = ${pVar} < 0 ? 0 : (${pVar} > 100 ? 100 : ${pVar});`)
   if (seg.parts.includes('bar')) {
     lines.push(
@@ -249,9 +239,9 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     lines.push(`${I}  const ${pctTextVar} = ${pVar} + "%";`)
   }
   if (timerVar && seg.parts.includes('timer')) {
-    lines.push(`${I}  const _reset = ${metricReset(seg.type)};`)
+    lines.push(`${I}  const ${resetVar} = ${nodeAccess(metricResetPath(m))};`)
     lines.push(
-      `${I}  const ${timerVar} = (_reset !== undefined && _reset !== null) ? time_until(Number(_reset), NOW) : "";`,
+      `${I}  const ${timerVar} = (${resetVar} !== undefined && ${resetVar} !== null) ? time_until(Number(${resetVar}), NOW) : "";`,
     )
   }
   const valueSpans = metricValueSpans(seg, {
@@ -266,60 +256,63 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   return lines
 }
 
-function metricPresent(type: 'context' | 'session' | 'week'): string {
-  if (type === 'context') return `data.context_window !== undefined`
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `data.rate_limits?.${bucket} !== undefined`
+/** Node optional-chain access for a path, e.g. ['rate_limits','five_hour'] →
+ *  `data.rate_limits?.five_hour`. */
+function nodeAccess(path: string[]): string {
+  return 'data.' + path.join('?.')
 }
-function metricPct(type: 'context' | 'session' | 'week'): string {
-  if (type === 'context') return `data.context_window?.used_percentage`
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `data.rate_limits?.${bucket}?.used_percentage`
-}
-function metricReset(type: 'context' | 'session' | 'week'): string {
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `data.rate_limits?.${bucket}?.resets_at`
+/** Presence test: the object at `path` is not undefined. */
+function nodeObjPresent(path: string[]): string {
+  return `${nodeAccess(path)} !== undefined`
 }
 
 function emitPeak(seg: PeakSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  // Capitalized, uid-scoped peak temp names.
+  const P = `_${u}Pk`
+  const dow = `${P}Dow`, h = `${P}H`, mn = `${P}M`, sc = `${P}S`
+  const mid = `${P}Mid`, ts = `${P}TodayStart`, te = `${P}TodayEnd`
+  const days = `${P}Days`, inV = `${P}In`, target = `${P}Target`
+  const k = `${P}K`, dk = `${P}Dk`, start = `${P}Start`
+  const label = `${P}Label`, lbl = `${P}Lbl`, cd = `${P}Cd`
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.peak} ---`]
   lines.push(`${I}// Peak: decompose NOW under tz, then pure epoch arithmetic. DST seam +-1h accepted.`)
-  lines.push(`${I}const [_pkDow, _pkH, _pkM, _pkS] = peak_decompose(NOW, ${jsStr(seg.tz)});`)
-  lines.push(`${I}const _pkMid = NOW - (_pkH * 3600 + _pkM * 60 + _pkS);`)
-  lines.push(`${I}const _pkTodayStart = _pkMid + ${seg.startHour} * 3600;`)
-  lines.push(`${I}const _pkTodayEnd = _pkMid + ${seg.endHour} * 3600;`)
-  lines.push(`${I}const _pkDays = new Set([${seg.windowDays.join(', ')}]);`)
-  lines.push(`${I}let _pkIn = false, _pkTarget = 0;`)
-  lines.push(`${I}if (_pkDays.has(_pkDow) && NOW >= _pkTodayStart && NOW < _pkTodayEnd) {`)
-  lines.push(`${I}  _pkIn = true; _pkTarget = _pkTodayEnd;`)
+  lines.push(`${I}const [${dow}, ${h}, ${mn}, ${sc}] = peak_decompose(NOW, ${jsStr(seg.tz)});`)
+  lines.push(`${I}const ${mid} = NOW - (${h} * 3600 + ${mn} * 60 + ${sc});`)
+  lines.push(`${I}const ${ts} = ${mid} + ${seg.startHour} * 3600;`)
+  lines.push(`${I}const ${te} = ${mid} + ${seg.endHour} * 3600;`)
+  lines.push(`${I}const ${days} = new Set([${seg.windowDays.join(', ')}]);`)
+  lines.push(`${I}let ${inV} = false, ${target} = 0;`)
+  lines.push(`${I}if (${days}.has(${dow}) && NOW >= ${ts} && NOW < ${te}) {`)
+  lines.push(`${I}  ${inV} = true; ${target} = ${te};`)
   lines.push(`${I}} else {`)
-  lines.push(`${I}  for (let _pkK = 0; _pkK <= 7; _pkK++) {`)
-  lines.push(`${I}    const _pkDk = ((_pkDow - 1 + _pkK) % 7) + 1;`)
-  lines.push(`${I}    if (!_pkDays.has(_pkDk)) continue;`)
-  lines.push(`${I}    const _pkStart = _pkMid + _pkK * 86400 + ${seg.startHour} * 3600;`)
-  lines.push(`${I}    if (_pkStart > NOW) { _pkTarget = _pkStart; break; }`)
+  lines.push(`${I}  for (let ${k} = 0; ${k} <= 7; ${k}++) {`)
+  lines.push(`${I}    const ${dk} = ((${dow} - 1 + ${k}) % 7) + 1;`)
+  lines.push(`${I}    if (!${days}.has(${dk})) continue;`)
+  lines.push(`${I}    const ${start} = ${mid} + ${k} * 86400 + ${seg.startHour} * 3600;`)
+  lines.push(`${I}    if (${start} > NOW) { ${target} = ${start}; break; }`)
   lines.push(`${I}  }`)
-  lines.push(`${I}  if (_pkTarget === 0) _pkTarget = _pkTodayStart + 7 * 86400;`)
+  lines.push(`${I}  if (${target} === 0) ${target} = ${ts} + 7 * 86400;`)
   lines.push(`${I}}`)
 
   const peakParams = concreteParams(seg.peakStyle)
   const offParams = concreteParams(seg.offPeakStyle)
-  lines.push(`${I}const _pkLabel = _pkIn ? "Peak" : "Off-peak";`)
+  lines.push(`${I}const ${label} = ${inV} ? "Peak" : "Off-peak";`)
   lines.push(
-    `${I}const _pkLbl = _pkIn ? (${spanLit('_pkLabel', peakParams)}) : (${spanLit('_pkLabel', offParams)});`,
+    `${I}const ${lbl} = ${inV} ? (${spanLit(label, peakParams)}) : (${spanLit(label, offParams)});`,
   )
 
   const prefix = decoratePrefix(seg, g)
   const parts = prefix.map((ps) => nodeSpan(ps.span))
-  parts.push('_pkLbl')
+  parts.push(lbl)
   lines.push(`${I}let ${out} = ${parts.length ? parts.join(' + ') : '""'};`)
   if (seg.showCountdown) {
-    lines.push(`${I}const _pkCd = time_until(_pkTarget, NOW);`)
+    lines.push(`${I}const ${cd} = time_until(${target}, NOW);`)
     const sep = nodeSpan(concreteSpan([lit(' ')], undefined))
-    const cd = nodeSpan(concreteSpan([lit('('), v('_pkCd'), lit(')')], { dim: true }))
-    lines.push(`${I}if (_pkCd) ${out} += ${sep} + ${cd};`)
+    const cdSpan = nodeSpan(concreteSpan([lit('('), v(cd), lit(')')], { dim: true }))
+    lines.push(`${I}if (${cd}) ${out} += ${sep} + ${cdSpan};`)
   }
   if (seg.suffix) {
     lines.push(`${I}${out} += ${nodeSpan(concreteSpan([lit(seg.suffix)], undefined))};`)
@@ -347,20 +340,23 @@ function decoratePrefix(seg: Segment, g: boolean): ValueSpan[] {
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const addVar = `_${u}Add`
+  const remVar = `_${u}Rem`
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.lines} ---`]
   lines.push(`${I}let ${out} = "";`)
   lines.push(`${I}if (data.cost !== undefined) {`)
-  lines.push(`${I}  const _lnAdd = data.cost?.total_lines_added || 0;`)
-  lines.push(`${I}  const _lnRem = data.cost?.total_lines_removed || 0;`)
+  lines.push(`${I}  const ${addVar} = data.cost?.total_lines_added || 0;`)
+  lines.push(`${I}  const ${remVar} = data.cost?.total_lines_removed || 0;`)
   const value: ValueSpan[] = []
   if (seg.linesStyle === 'addedOnly') {
-    value.push({ span: concreteSpan([lit('+'), v('_lnAdd')], seg.addedStyle) })
+    value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
   } else if (seg.linesStyle === 'removedOnly') {
-    value.push({ span: concreteSpan([lit('-'), v('_lnRem')], seg.removedStyle) })
+    value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   } else {
-    value.push({ span: concreteSpan([lit('+'), v('_lnAdd')], seg.addedStyle) })
+    value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
     value.push({ span: concreteSpan([lit(' ')], undefined) })
-    value.push({ span: concreteSpan([lit('-'), v('_lnRem')], seg.removedStyle) })
+    value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   }
   lines.push(...assignSpansAt(out, decorate(seg, g, value), I + '  ', true))
   lines.push(`${I}}`)
@@ -370,15 +366,18 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
 function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const numVar = `_${u}Num`
+  const stateVar = `_${u}State`
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.pr} ---`]
   lines.push(`${I}let ${out} = "";`)
   lines.push(`${I}if (data.pr !== undefined) {`)
-  lines.push(`${I}  const _prNum = data.pr?.number === undefined || data.pr?.number === null ? "" : String(data.pr.number);`)
-  lines.push(`${I}  const _prState = data.pr?.review_state || "";`)
-  const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v('_prNum')], seg.style) }]
+  lines.push(`${I}  const ${numVar} = data.pr?.number === undefined || data.pr?.number === null ? "" : String(data.pr.number);`)
+  const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v(numVar)], seg.style) }]
   if (seg.showState) {
-    value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: '_prState' })
-    value.push({ span: concreteSpan([v('_prState')], seg.style), whenVar: '_prState' })
+    lines.push(`${I}  const ${stateVar} = data.pr?.review_state || "";`)
+    value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
+    value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
   lines.push(...assignSpansAt(out, decorate(seg, g, value), I + '  ', true))
   lines.push(`${I}}`)
@@ -388,16 +387,19 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
 function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const wVar = `_${u}W`
+  const sepVar = `_${u}Sep`
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.separator} ---`]
   if (seg.width === 'full') {
-    lines.push(`${I}const _sepW = parseInt(process.env.COLUMNS, 10) || 80;`)
+    lines.push(`${I}const ${wVar} = parseInt(process.env.COLUMNS, 10) || 80;`)
   } else {
-    lines.push(`${I}const _sepW = ${seg.width};`)
+    lines.push(`${I}const ${wVar} = ${seg.width};`)
   }
   lines.push(`${I}let ${out} = "";`)
-  lines.push(`${I}if (_sepW > 0 && ${jsStr(seg.fill)}) {`)
-  lines.push(`${I}  const _sep = ${jsStr(seg.fill)}.repeat(_sepW);`)
-  lines.push(...assignDecorated(out, seg, g, [v('_sep')], seg.style, I + '  ', true))
+  lines.push(`${I}if (${wVar} > 0 && ${jsStr(seg.fill)}) {`)
+  lines.push(`${I}  const ${sepVar} = ${jsStr(seg.fill)}.repeat(${wVar});`)
+  lines.push(...assignDecorated(out, seg, g, [v(sepVar)], seg.style, I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }

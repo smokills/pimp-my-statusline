@@ -162,7 +162,8 @@ function planRow(
   const segments: PlannedSegment[] = []
   for (const seg of row.segments) {
     if (!seg.enabled) continue
-    segments.push({ seg, varName: segVar(emitter, names.get(seg)!) })
+    const uid = names.get(seg)!
+    segments.push({ seg, varName: segVar(emitter, uid), uid })
   }
   return {
     rowIndex,
@@ -203,6 +204,17 @@ export function assemble(config: StatuslineConfig, emitter: Emitter): string {
   // 3) preamble
   lines.push(...emitter.preamble(config))
 
+  // 3b) optional single-pass field extraction (bash; others access the parsed
+  // object directly). uidOf yields each segment's unique-within-script suffix.
+  if (emitter.extraction) {
+    const uidOf = (seg: Segment) => names.get(seg)!
+    const ex = emitter.extraction(config, uidOf)
+    if (ex.length > 0) {
+      lines.push('')
+      lines.push(...ex)
+    }
+  }
+
   // 4) helper block
   const helperLines: string[] = []
   helperLines.push(...emitter.baseHelpers(fns.length > 0))
@@ -220,6 +232,7 @@ export function assemble(config: StatuslineConfig, emitter: Emitter): string {
       const ctx: SegmentEmitCtx = {
         config,
         varName: ps.varName,
+        uid: ps.uid,
         colorFnName: nameOf,
       }
       lines.push('')

@@ -22,6 +22,10 @@ export interface SegmentEmitCtx {
   config: StatuslineConfig
   /** The variable name to assign the rendered segment into (e.g. `SEG_session`). */
   varName: string
+  /** A unique-within-script suffix for this segment (`model`, `model2`, ...).
+   *  Emitters build per-segment temp variable names from this so two segments
+   *  of the same type never collide (e.g. node `const _model` redeclaration). */
+  uid: string
   /** Resolve the runtime color-fn name for a given threshold stops list. */
   colorFnName(stops: ThresholdStop[]): string
 }
@@ -36,6 +40,11 @@ export interface Emitter {
   /** Lines of the preamble: stdin read + JSON parse + NOW + COLUMNS, etc.
    *  `needsGit` enables the git-branch env-override note where relevant. */
   preamble(config: StatuslineConfig): string[]
+  /** Optional: a field-extraction block emitted right after the preamble (bash
+   *  uses this for a single-pass jq pull into EX_* vars; python/node access the
+   *  parsed object directly and return []). `uidOf` yields each segment's
+   *  unique suffix. */
+  extraction?(config: StatuslineConfig, uidOf: (seg: Segment) => string): string[]
 
   // ----- Helpers -----
   /** Base helpers always needed by styled output (e.g. the span wrapper). Only
@@ -63,6 +72,8 @@ export interface Emitter {
 export interface PlannedSegment {
   seg: Segment
   varName: string
+  /** Unique-within-script suffix (`model`, `model2`, ...) for temp var naming. */
+  uid: string
 }
 
 /** A row with its enabled segments resolved to variable names. */

@@ -22,6 +22,13 @@ import type { PlanSpan, TextPiece } from './spanplan'
 import { concreteSpan, lit, v } from './spanplan'
 import { concreteParams } from './fragments'
 import { decorate, metricValueSpans, type ValueSpan } from './segments/ir'
+import {
+  metricPctPath,
+  metricResetPath,
+  metricSourcePath,
+  simplePath,
+  type MetricType,
+} from './segments/paths'
 import { pyColorFn, pyHelper, pySgrWrap } from './helpers/python'
 import { SEGMENT_COMMENT } from './segments/labels'
 import { emitPyPet, emitPyPetCompose } from './pets/python'
@@ -30,18 +37,28 @@ import { emitPyPet, emitPyPetCompose } from './pets/python'
 // Python literal escaping (single-quoted) and f-string body escaping
 // ---------------------------------------------------------------------------
 
+/** Escape control whitespace (newline/carriage-return/tab) into their backslash
+ *  forms so a user string containing them never breaks the single-line literal.
+ *  Decodes back to the same bytes at runtime, matching the raw string the
+ *  preview passes through. */
+function escapeWhitespace(s: string): string {
+  return s.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+}
+
 /** Escape text for a python single-quoted string literal. */
 function pyStr(text: string): string {
-  return `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+  return `'${escapeWhitespace(text.replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}'`
 }
 
 /** Escape literal text for embedding inside a single-quoted f-string body. */
 function fbody(text: string): string {
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/\{/g, '{{')
-    .replace(/\}/g, '}}')
+  return escapeWhitespace(
+    text
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/\{/g, '{{')
+      .replace(/\}/g, '}}'),
+  )
 }
 
 function piecesToFbody(pieces: TextPiece[]): string {
@@ -58,10 +75,21 @@ function pySpan(span: PlanSpan): string {
   const body = piecesToFbody(span.pieces)
   if (span.threshold) {
     const { fn, pctVar, boldDim } = span.threshold
-    return `sgr_wrap(${pyStr(boldDim)}, ${fn}(${pctVar}), f'${body}')`
+    return `sgr_wrap(${pyStr(boldDim)}, ${fn}(${pctVar}), ${spanInner(span, body)})`
   }
   if (span.concrete) {
     return `f'\\033[${span.concrete}m${body}\\033[0m'`
+  }
+  // No style: a single literal piece is a plain string literal (no f-string
+  // noise); everything else stays an f-string.
+  return spanInner(span, body)
+}
+
+/** The inner text expression for a span (the part wrapped by SGR escapes). A
+ *  lone literal becomes a plain '...'; otherwise an f-string. */
+function spanInner(span: PlanSpan, body: string): string {
+  if (span.pieces.length === 1 && span.pieces[0].kind === 'lit') {
+    return pyStr(span.pieces[0].text)
   }
   return `f'${body}'`
 }
@@ -111,7 +139,7 @@ function getExpr(path: string[]): string {
 
 function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const tmp = `_${seg.type}`
+  const tmp = `_${ctx.uid}`
   const g = ctx.config.global.emoji
   const lines: string[] = [`# --- ${SEGMENT_COMMENT[seg.type]} ---`]
 
@@ -148,29 +176,6 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   return lines
 }
 
-function simplePath(type: SimpleSegment['type']): string[] {
-  switch (type) {
-    case 'model':
-      return ['model', 'display_name']
-    case 'effort':
-      return ['effort', 'level']
-    case 'outputStyle':
-      return ['output_style', 'name']
-    case 'vimMode':
-      return ['vim', 'mode']
-    case 'sessionName':
-      return ['session_name']
-    case 'agent':
-      return ['agent', 'name']
-    case 'version':
-      return ['version']
-    case 'worktree':
-      return ['worktree', 'name']
-    default:
-      return []
-  }
-}
-
 function guard(
   tmp: string,
   out: string,
@@ -202,18 +207,21 @@ function assignSpansDecorated(
 function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const dir = `_${u}_dir`
+  const disp = `_${u}_disp`
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.directory} ---`]
-  lines.push(`_dir = _dir_cwd`)
-  lines.push(`_disp = _dir`)
+  lines.push(`${dir} = _dir_cwd`)
+  lines.push(`${disp} = ${dir}`)
   if (seg.dirStyle === 'basename') {
-    lines.push(`_disp = (_disp.rstrip('/').rsplit('/', 1)[-1]) or _dir`)
+    lines.push(`${disp} = (${disp}.rstrip('/').rsplit('/', 1)[-1]) or ${dir}`)
   } else if (seg.dirStyle === 'tildeHome') {
     lines.push(`_home = os.environ.get('HOME', '')`)
-    lines.push(`if _disp == _home: _disp = '~'`)
-    lines.push(`elif _home and _disp.startswith(_home + '/'): _disp = '~' + _disp[len(_home):]`)
+    lines.push(`if ${disp} == _home: ${disp} = '~'`)
+    lines.push(`elif _home and ${disp}.startswith(_home + '/'): ${disp} = '~' + ${disp}[len(_home):]`)
   }
-  lines.push(`if _dir:`)
-  lines.push(...assignSpansDecorated(out, seg, g, [v('_disp')], seg.style, '    '))
+  lines.push(`if ${dir}:`)
+  lines.push(...assignSpansDecorated(out, seg, g, [v(disp)], seg.style, '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines
@@ -222,14 +230,17 @@ function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
 function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
   const lines: string[] = [`# --- ${SEGMENT_COMMENT[seg.type]} ---`]
-  const pVar = `_${seg.type}_p`
-  const barVar = `_${seg.type}_bar`
-  const pctTextVar = `_${seg.type}_pct`
-  const timerVar = seg.type === 'context' ? null : `_${seg.type}_timer`
+  const m = seg.type as MetricType
+  const pVar = `_${u}_p`
+  const barVar = `_${u}_bar`
+  const pctTextVar = `_${u}_pct`
+  const resetVar = `_${u}_reset`
+  const timerVar = seg.type === 'context' ? null : `_${u}_timer`
 
-  lines.push(`if ${metricPresent(seg.type)}:`)
-  lines.push(`    ${pVar} = int(float(${metricPct(seg.type)} or 0))`)
+  lines.push(`if ${pyObjPresent(metricSourcePath(m))}:`)
+  lines.push(`    ${pVar} = int(float(${getExpr(metricPctPath(m))} or 0))`)
   lines.push(`    ${pVar} = 0 if ${pVar} < 0 else (100 if ${pVar} > 100 else ${pVar})`)
   if (seg.parts.includes('bar')) {
     lines.push(
@@ -240,8 +251,8 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     lines.push(`    ${pctTextVar} = f'{${pVar}}%'`)
   }
   if (timerVar && seg.parts.includes('timer')) {
-    lines.push(`    _reset = ${metricReset(seg.type)}`)
-    lines.push(`    ${timerVar} = time_until(int(_reset), NOW) if _reset is not None else ''`)
+    lines.push(`    ${resetVar} = ${getExpr(metricResetPath(m))}`)
+    lines.push(`    ${timerVar} = time_until(int(${resetVar}), NOW) if ${resetVar} is not None else ''`)
   }
   const valueSpans = metricValueSpans(seg, {
     pctVar: pVar,
@@ -256,62 +267,58 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   return lines
 }
 
-function metricPresent(type: 'context' | 'session' | 'week'): string {
-  if (type === 'context') return `'context_window' in data`
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `'${bucket}' in (data.get('rate_limits') or {})`
-}
-function metricPct(type: 'context' | 'session' | 'week'): string {
-  if (type === 'context') return `(data.get('context_window') or {}).get('used_percentage')`
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `((data.get('rate_limits') or {}).get('${bucket}') or {}).get('used_percentage')`
-}
-function metricReset(type: 'context' | 'session' | 'week'): string {
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `((data.get('rate_limits') or {}).get('${bucket}') or {}).get('resets_at')`
+/** Presence test for an object path: each key present at its level. For a
+ *  single key it is `'k' in data`; nested it walks via `.get`. */
+function pyObjPresent(path: string[]): string {
+  if (path.length === 1) return `'${path[0]}' in data`
+  const parent = getExpr(path.slice(0, -1))
+  const key = path[path.length - 1]
+  return `'${key}' in (${parent} or {})`
 }
 
 function emitPeak(seg: PeakSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const p = `_${u}_pk`
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.peak} ---`]
   lines.push('# Peak: decompose NOW under tz, then pure epoch arithmetic. DST seam +-1h accepted.')
-  lines.push(`_pk_dow, _pk_h, _pk_m, _pk_s = peak_decompose(NOW, ${pyStr(seg.tz)})`)
-  lines.push('_pk_mid = NOW - (_pk_h*3600 + _pk_m*60 + _pk_s)')
-  lines.push(`_pk_today_start = _pk_mid + ${seg.startHour}*3600`)
-  lines.push(`_pk_today_end = _pk_mid + ${seg.endHour}*3600`)
-  lines.push(`_pk_days = {${seg.windowDays.join(', ')}}`)
-  lines.push('_pk_in = False')
-  lines.push('_pk_target = 0')
-  lines.push('if _pk_dow in _pk_days and _pk_today_start <= NOW < _pk_today_end:')
-  lines.push('    _pk_in = True')
-  lines.push('    _pk_target = _pk_today_end')
+  lines.push(`${p}_dow, ${p}_h, ${p}_m, ${p}_s = peak_decompose(NOW, ${pyStr(seg.tz)})`)
+  lines.push(`${p}_mid = NOW - (${p}_h*3600 + ${p}_m*60 + ${p}_s)`)
+  lines.push(`${p}_today_start = ${p}_mid + ${seg.startHour}*3600`)
+  lines.push(`${p}_today_end = ${p}_mid + ${seg.endHour}*3600`)
+  lines.push(`${p}_days = {${seg.windowDays.join(', ')}}`)
+  lines.push(`${p}_in = False`)
+  lines.push(`${p}_target = 0`)
+  lines.push(`if ${p}_dow in ${p}_days and ${p}_today_start <= NOW < ${p}_today_end:`)
+  lines.push(`    ${p}_in = True`)
+  lines.push(`    ${p}_target = ${p}_today_end`)
   lines.push('else:')
-  lines.push('    for _pk_k in range(0, 8):')
-  lines.push('        _pk_dk = (_pk_dow - 1 + _pk_k) % 7 + 1')
-  lines.push('        if _pk_dk not in _pk_days: continue')
-  lines.push(`        _pk_start = _pk_mid + _pk_k*86400 + ${seg.startHour}*3600`)
-  lines.push('        if _pk_start > NOW:')
-  lines.push('            _pk_target = _pk_start')
+  lines.push(`    for ${p}_k in range(0, 8):`)
+  lines.push(`        ${p}_dk = (${p}_dow - 1 + ${p}_k) % 7 + 1`)
+  lines.push(`        if ${p}_dk not in ${p}_days: continue`)
+  lines.push(`        ${p}_start = ${p}_mid + ${p}_k*86400 + ${seg.startHour}*3600`)
+  lines.push(`        if ${p}_start > NOW:`)
+  lines.push(`            ${p}_target = ${p}_start`)
   lines.push('            break')
-  lines.push('    if _pk_target == 0: _pk_target = _pk_today_start + 7*86400')
+  lines.push(`    if ${p}_target == 0: ${p}_target = ${p}_today_start + 7*86400`)
 
   const peakParams = concreteParams(seg.peakStyle)
   const offParams = concreteParams(seg.offPeakStyle)
-  lines.push(`_pk_label = 'Peak' if _pk_in else 'Off-peak'`)
+  lines.push(`${p}_label = 'Peak' if ${p}_in else 'Off-peak'`)
   lines.push(
-    `_pk_lbl = (${spanLit('_pk_label', peakParams)}) if _pk_in else (${spanLit('_pk_label', offParams)})`,
+    `${p}_lbl = (${spanLit(`${p}_label`, peakParams)}) if ${p}_in else (${spanLit(`${p}_label`, offParams)})`,
   )
 
   const prefix = decoratePrefix(seg, g)
   const parts: string[] = prefix.map((ps) => pySpan(ps.span))
-  parts.push('_pk_lbl')
+  parts.push(`${p}_lbl`)
   lines.push(`${out} = ${parts.length ? parts.join(' + ') : "''"}`)
   if (seg.showCountdown) {
-    lines.push('_pk_cd = time_until(_pk_target, NOW)')
+    lines.push(`${p}_cd = time_until(${p}_target, NOW)`)
     const sep = pySpan(concreteSpan([lit(' ')], undefined))
-    const cd = pySpan(concreteSpan([lit('('), v('_pk_cd'), lit(')')], { dim: true }))
-    lines.push(`if _pk_cd: ${out} += ${sep} + ${cd}`)
+    const cd = pySpan(concreteSpan([lit('('), v(`${p}_cd`), lit(')')], { dim: true }))
+    lines.push(`if ${p}_cd: ${out} += ${sep} + ${cd}`)
   }
   if (seg.suffix) {
     lines.push(`${out} += ${pySpan(concreteSpan([lit(seg.suffix)], undefined))}`)
@@ -339,19 +346,22 @@ function decoratePrefix(seg: Segment, g: boolean): ValueSpan[] {
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const addVar = `_${u}_add`
+  const remVar = `_${u}_rem`
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.lines} ---`]
   lines.push(`if 'cost' in data:`)
-  lines.push(`    _ln_add = (data.get('cost') or {}).get('total_lines_added') or 0`)
-  lines.push(`    _ln_rem = (data.get('cost') or {}).get('total_lines_removed') or 0`)
+  lines.push(`    ${addVar} = (data.get('cost') or {}).get('total_lines_added') or 0`)
+  lines.push(`    ${remVar} = (data.get('cost') or {}).get('total_lines_removed') or 0`)
   const value: ValueSpan[] = []
   if (seg.linesStyle === 'addedOnly') {
-    value.push({ span: concreteSpan([lit('+'), v('_ln_add')], seg.addedStyle) })
+    value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
   } else if (seg.linesStyle === 'removedOnly') {
-    value.push({ span: concreteSpan([lit('-'), v('_ln_rem')], seg.removedStyle) })
+    value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   } else {
-    value.push({ span: concreteSpan([lit('+'), v('_ln_add')], seg.addedStyle) })
+    value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
     value.push({ span: concreteSpan([lit(' ')], undefined) })
-    value.push({ span: concreteSpan([lit('-'), v('_ln_rem')], seg.removedStyle) })
+    value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   }
   lines.push(...assignSpans(out, decorate(seg, g, value), '    '))
   lines.push('else:')
@@ -362,15 +372,18 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
 function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const numVar = `_${u}_num`
+  const stateVar = `_${u}_state`
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.pr} ---`]
   lines.push(`if 'pr' in data:`)
-  lines.push(`    _pr_num = (data.get('pr') or {}).get('number')`)
-  lines.push(`    _pr_num = '' if _pr_num is None else str(_pr_num)`)
-  lines.push(`    _pr_state = (data.get('pr') or {}).get('review_state') or ''`)
-  const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v('_pr_num')], seg.style) }]
+  lines.push(`    ${numVar} = (data.get('pr') or {}).get('number')`)
+  lines.push(`    ${numVar} = '' if ${numVar} is None else str(${numVar})`)
+  const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v(numVar)], seg.style) }]
   if (seg.showState) {
-    value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: '_pr_state' })
-    value.push({ span: concreteSpan([v('_pr_state')], seg.style), whenVar: '_pr_state' })
+    lines.push(`    ${stateVar} = (data.get('pr') or {}).get('review_state') or ''`)
+    value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
+    value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
   lines.push(...assignSpans(out, decorate(seg, g, value), '    '))
   lines.push('else:')
@@ -381,15 +394,18 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
 function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
+  const u = ctx.uid
+  const wVar = `_${u}_w`
+  const sepVar = `_${u}_sep`
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.separator} ---`]
   if (seg.width === 'full') {
-    lines.push(`_sep_w = int(os.environ.get('COLUMNS') or 80)`)
+    lines.push(`${wVar} = int(os.environ.get('COLUMNS') or 80)`)
   } else {
-    lines.push(`_sep_w = ${seg.width}`)
+    lines.push(`${wVar} = ${seg.width}`)
   }
-  lines.push(`if _sep_w > 0 and ${pyStr(seg.fill)}:`)
-  lines.push(`    _sep = ${pyStr(seg.fill)} * _sep_w`)
-  lines.push(...assignSpansDecorated(out, seg, g, [v('_sep')], seg.style, '    '))
+  lines.push(`if ${wVar} > 0 and ${pyStr(seg.fill)}:`)
+  lines.push(`    ${sepVar} = ${pyStr(seg.fill)} * ${wVar}`)
+  lines.push(...assignSpansDecorated(out, seg, g, [v(sepVar)], seg.style, '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines

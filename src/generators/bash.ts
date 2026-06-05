@@ -2,6 +2,11 @@
 // reads the Claude Code statusline JSON on stdin and prints the same bytes the
 // preview's renderToAnsi produces.
 //
+// PERFORMANCE: all stdin fields are pulled in a SINGLE jq pass into EX_* shell
+// variables (statuslines run on every prompt — one jq spawn beats a dozen). The
+// extraction is NUL-separated so a field value may legitimately contain any
+// byte including newlines/tabs.
+//
 // PORTABILITY (each rule was a real found defect — see the generated comments):
 //  - shebang /usr/bin/env bash
 //  - jq preflight, exit 0 (so CC never shows a broken statusline)
@@ -26,6 +31,7 @@ import type {
   StaticTextSegment,
   DirectorySegment,
   PrSegment,
+  StatuslineConfig,
   TextStyle,
 } from '../model/types'
 import type { Emitter, RowPlan, SegmentEmitCtx } from './types'
@@ -33,21 +39,30 @@ import type { PlanSpan, TextPiece } from './spanplan'
 import { concreteSpan, lit, v } from './spanplan'
 import { concreteParams } from './fragments'
 import { decorate, metricValueSpans, type ValueSpan } from './segments/ir'
+import {
+  metricPctPath,
+  metricResetPath,
+  metricSourcePath,
+  simplePath,
+  type MetricType,
+} from './segments/paths'
 import { bashColorFn, bashHelper, bashSgrWrap } from './helpers/bash'
 import { emitBashPet, emitBashPetCompose } from './pets/bash'
+import { petMetricPath, hasPet } from './pets/shared'
 import { SEGMENT_COMMENT } from './segments/labels'
 
 // ---------------------------------------------------------------------------
 // Bash literal escaping
 // ---------------------------------------------------------------------------
 
-/** Escape text for a bash DOUBLE-quoted context. Backslash, $, `, " escaped. */
+/** Escape text for a bash DOUBLE-quoted context. Backslash, $, `, " escaped.
+ *  Literal newlines/tabs are fine inside "..." and round-trip as bytes. */
 function dq(text: string): string {
   return text.replace(/[\\$`"]/g, (c) => '\\' + c)
 }
 
 /** Escape text for a bash SINGLE-quoted context ('...'): a single quote becomes
- *  '\'' . Everything else is literal. */
+ *  '\'' . Everything else (incl. newlines) is literal. */
 function sq(text: string): string {
   return text.replace(/'/g, `'\\''`)
 }
@@ -55,6 +70,159 @@ function sq(text: string): string {
 /** A $'\033[params m' ANSI-C literal (real ESC byte). */
 function esc(params: string): string {
   return `$'\\033[${params}m'`
+}
+
+/** A jq object-access path: ['model','display_name'] → `.model.display_name`. */
+function jqPath(path: string[]): string {
+  return '.' + path.join('.')
+}
+
+/** jq presence test for an object path (key present at each level). */
+function jqHas(path: string[]): string {
+  // (.a // {}) | has("b") chained: build nested has() so an absent parent is
+  // safe. For a single-key path it is just `has("a")` on the root.
+  if (path.length === 1) return `has("${path[0]}")`
+  const parent = path.slice(0, -1)
+  const key = path[path.length - 1]
+  return `(${jqPath(parent)} // {}) | has("${key}")`
+}
+
+// ---------------------------------------------------------------------------
+// Single-pass extraction
+//
+// Each enabled segment (and the pet) contributes "field specs": a jq expression
+// producing one raw value, plus the EX_* variable that receives it. We emit ONE
+// jq program that concatenates every field NUL-terminated, and a grouped block
+// of `read -r -d ''` that fills the variables. NUL separation is the only fully
+// byte-safe choice (values may contain newlines/tabs).
+// ---------------------------------------------------------------------------
+
+interface FieldSpec {
+  /** EX_* variable name (without the leading $). */
+  var: string
+  /** jq expression yielding a string/number/flag. */
+  jq: string
+  /** Optional comment describing the field (for the listing). */
+  note?: string
+}
+
+/** Collect the field specs needed by the enabled segments + pet, in document
+ *  order. gitBranch is NOT here (it comes from $PMSL_GIT_BRANCH/git, not jq). */
+function collectFields(config: StatuslineConfig, uidOf: (seg: Segment) => string): FieldSpec[] {
+  const fields: FieldSpec[] = []
+  const push = (varName: string, jq: string, note?: string) =>
+    fields.push({ var: varName, jq, note })
+
+  // The directory source is shared (cwd ?? workspace.current_dir); emit once.
+  let dirEmitted = false
+  const ensureDir = () => {
+    if (dirEmitted) return
+    push('EX_dir', '(.cwd // .workspace.current_dir // "")', 'directory / git cwd')
+    dirEmitted = true
+  }
+  if (hasGitSegment(config)) ensureDir()
+
+  for (const row of config.rows) {
+    for (const seg of row.segments) {
+      if (!seg.enabled) continue
+      const u = uidOf(seg)
+      switch (seg.type) {
+        case 'directory':
+          ensureDir()
+          break
+        case 'gitBranch':
+          ensureDir() // git -C needs the cwd
+          break
+        case 'model':
+        case 'effort':
+        case 'outputStyle':
+        case 'vimMode':
+        case 'sessionName':
+        case 'agent':
+        case 'version':
+        case 'worktree':
+          push(`EX_${u}`, `(${jqPath(simplePath(seg.type))} // "")`, SEGMENT_COMMENT[seg.type])
+          break
+        case 'thinking':
+          push(`EX_${u}`, '(if (.thinking.enabled // false) then "thinking" else "" end)', 'Thinking')
+          break
+        case 'cost':
+          push(`EX_${u}_has`, jqFlag(jqHas(['cost'])), 'Cost present')
+          push(`EX_${u}`, '(.cost.total_cost_usd // 0)', 'Cost USD')
+          break
+        case 'duration':
+          push(`EX_${u}_has`, jqFlag(jqHas(['cost'])), 'Duration: cost present')
+          push(`EX_${u}`, '(.cost.total_duration_ms // 0)', 'Duration ms')
+          break
+        case 'lines':
+          push(`EX_${u}_has`, jqFlag(jqHas(['cost'])), 'Lines: cost present')
+          push(`EX_${u}_add`, '(.cost.total_lines_added // 0)', 'Lines added')
+          push(`EX_${u}_rem`, '(.cost.total_lines_removed // 0)', 'Lines removed')
+          break
+        case 'context':
+        case 'session':
+        case 'week': {
+          const m = seg.type as MetricType
+          push(`EX_${u}_has`, jqFlag(jqHas(metricSourcePath(m))), `${SEGMENT_COMMENT[m]} present`)
+          push(`EX_${u}_p`, `(${jqPath(metricPctPath(m))} // 0 | floor)`, `${SEGMENT_COMMENT[m]} %`)
+          if (m !== 'context' && (seg as MetricSegment).parts.includes('timer')) {
+            push(`EX_${u}_reset`, `(${jqPath(metricResetPath(m))} // "")`, `${SEGMENT_COMMENT[m]} reset`)
+          }
+          break
+        }
+        case 'pr':
+          push(`EX_${u}_has`, jqFlag(jqHas(['pr'])), 'PR present')
+          push(`EX_${u}_num`, '(.pr.number // "")', 'PR number')
+          if ((seg as PrSegment).showState) {
+            push(`EX_${u}_state`, '(.pr.review_state // "")', 'PR review state')
+          }
+          break
+        case 'separator':
+        case 'staticText':
+          break // no jq fields
+      }
+    }
+  }
+
+  // Pet bound-metric percent (when a pet is enabled).
+  if (hasPet(config)) {
+    push('EX_pet_p', `(${jqPath(petMetricPath(config.pet.metric))} // 0 | floor)`, 'Pet bound metric %')
+  }
+
+  return fields
+}
+
+/** jq boolean → "1"/"0" string flag. */
+function jqFlag(expr: string): string {
+  return `(if (${expr}) then "1" else "0" end)`
+}
+
+function hasGitSegment(config: StatuslineConfig): boolean {
+  return config.rows.some((r) => r.segments.some((s) => s.enabled && s.type === 'gitBranch'))
+}
+
+/** Emit the single-pass extraction block (or nothing if no jq fields needed).
+ *  Reads from a PROCESS SUBSTITUTION (not a pipe) so the assigned variables
+ *  persist in the current shell — a `jq | { read; }` pipe would run the reads
+ *  in a subshell and lose them. */
+function emitExtraction(fields: FieldSpec[]): string[] {
+  if (fields.length === 0) return []
+  const lines: string[] = []
+  lines.push('# --- Extract every needed stdin field in ONE jq pass ---')
+  lines.push('# NUL-separated so a value may contain any byte (newlines, tabs).')
+  lines.push('# Fields, in order:')
+  for (const f of fields) lines.push(`#   ${f.var} = ${f.note ?? f.jq}`)
+  // The jq program: each field, then a NUL. tostring keeps numbers/flags as
+  // text; raw output (-j, no trailing newline) preserves embedded bytes.
+  const jqBody = fields.map((f) => `(${f.jq} | tostring), "\\u0000"`).join(',\n  ')
+  lines.push('{')
+  for (const f of fields) {
+    lines.push(`  IFS= read -r -d '' ${f.var}`)
+  }
+  lines.push('} < <(jq -j \'')
+  lines.push(`  ${jqBody}`)
+  lines.push('\' <<<"$input")')
+  return lines
 }
 
 // ---------------------------------------------------------------------------
@@ -72,36 +240,26 @@ function piecesToDq(pieces: TextPiece[]): string {
   return out
 }
 
-/** Serialize one span to a bash expression fragment (concatenated with the
- *  rest via adjacency inside one double-quoted string where possible). Returns
- *  a string that is a sequence of double-quoted / $'...' / $(...) fragments. */
+/** Serialize one span to a bash expression fragment. */
 function bashSpan(span: PlanSpan): string {
   const body = piecesToDq(span.pieces)
   if (span.threshold) {
     const { fn, pctVar, boldDim } = span.threshold
-    // sgr_wrap '<boldDim>' "$(<fn> "$<pctVar>")" "<body>"
     return `"$(sgr_wrap '${boldDim}' "$(${fn} "$${pctVar}")" "${body}")"`
   }
   if (span.concrete) {
     return `${esc(span.concrete)}"${body}"${esc('0')}`
   }
-  // plain text, no escapes
   return `"${body}"`
 }
 
-/** Serialize a whole list of value spans into the RHS of an assignment, honoring
- *  runtime-conditional spans (the metric/peak timer). */
+/** Serialize value spans into the RHS of an assignment, honoring runtime-
+ *  conditional spans (the metric/peak timer / pr state). */
 function assignSpans(outVar: string, spans: ValueSpan[]): string[] {
-  // Static (always-present) spans first → one assignment; conditional groups
-  // appended afterwards. We preserve ORDER: emit statics that precede a
-  // conditional, then the conditional, then continue. Since conditionals only
-  // ever appear at the tail (timer is last), we build the static prefix then
-  // append conditionals.
   const lines: string[] = []
   const staticParts: string[] = []
   const conditionals: { whenVar: string; parts: string[] }[] = []
 
-  // Group consecutive conditional spans sharing the same whenVar.
   let i = 0
   while (i < spans.length) {
     const s = spans[i]
@@ -127,100 +285,61 @@ function assignSpans(outVar: string, spans: ValueSpan[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Extraction helpers (bash)
-// ---------------------------------------------------------------------------
-
-/** A jq path string for an object path like ['model','display_name']. */
-function jqPath(path: string[]): string {
-  return '.' + path.map((k) => k).join('.')
-}
-
-// ---------------------------------------------------------------------------
-// Per-segment emit
+// Per-segment emit. Segments read pre-extracted EX_* variables.
 // ---------------------------------------------------------------------------
 
 function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
-  const tmp = `_${seg.type}`
-  const globalEmoji = ctx.config.global.emoji
+  const u = ctx.uid
+  const tmp = `_${u}`
+  const g = ctx.config.global.emoji
   lines.push(`# --- ${SEGMENT_COMMENT[seg.type]} ---`)
 
   if (seg.type === 'gitBranch') {
     lines.push(
-      `${tmp}="\${PMSL_GIT_BRANCH-$(git -C "$DIR" branch --show-current 2>/dev/null)}"`,
+      `${tmp}="\${PMSL_GIT_BRANCH-$(git -C "$EX_dir" branch --show-current 2>/dev/null)}"`,
     )
-    lines.push(...guardNonEmpty(tmp, out, seg, globalEmoji, ctx, [v(tmp)], seg.style))
+    lines.push(...guardNonEmpty(tmp, out, seg, g, [v(tmp)], seg.style))
     return lines
   }
   if (seg.type === 'cost') {
-    lines.push(`if [ "$(jq -r 'has("cost")' <<<"$input")" = "true" ]; then`)
-    lines.push(`  ${tmp}=$(jq -r '.cost.total_cost_usd // 0' <<<"$input")`)
-    lines.push(`  ${tmp}=$(fmt_cost "$${tmp}")`)
-    lines.push(...indent(assignDecorated(out, seg, globalEmoji, ctx, [v(tmp)], seg.style)))
+    lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
+    lines.push(`  ${tmp}=$(fmt_cost "$EX_${u}")`)
+    lines.push(...indent(assignDecorated(out, seg, g, [v(tmp)], seg.style)))
     lines.push('else')
     lines.push(`  ${out}=''`)
     lines.push('fi')
     return lines
   }
   if (seg.type === 'duration') {
-    lines.push(`if [ "$(jq -r 'has("cost")' <<<"$input")" = "true" ]; then`)
-    lines.push(`  ${tmp}=$(jq -r '.cost.total_duration_ms // 0' <<<"$input")`)
-    lines.push(`  ${tmp}=$(fmt_duration "$${tmp}")`)
-    lines.push(...indent(assignDecorated(out, seg, globalEmoji, ctx, [v(tmp)], seg.style)))
+    lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
+    lines.push(`  ${tmp}=$(fmt_duration "$EX_${u}")`)
+    lines.push(...indent(assignDecorated(out, seg, g, [v(tmp)], seg.style)))
     lines.push('else')
     lines.push(`  ${out}=''`)
     lines.push('fi')
     return lines
   }
 
-  // String-valued simple segments.
-  const path = simplePath(seg.type)
-  if (seg.type === 'thinking') {
-    lines.push(`${tmp}=$(jq -r 'if (.thinking.enabled // false) then "thinking" else empty end' <<<"$input")`)
-  } else {
-    lines.push(`${tmp}=$(jq -r '${jqPath(path)} // empty' <<<"$input")`)
-  }
-  lines.push(...guardNonEmpty(tmp, out, seg, globalEmoji, ctx, [v(tmp)], seg.style))
+  // String-valued simple segments (model/effort/.../thinking): EX_<uid> holds
+  // the value (already "" when absent).
+  lines.push(...guardNonEmpty(`EX_${u}`, out, seg, g, [v(`EX_${u}`)], seg.style))
   return lines
 }
 
-function simplePath(type: SimpleSegment['type']): string[] {
-  switch (type) {
-    case 'model':
-      return ['model', 'display_name']
-    case 'effort':
-      return ['effort', 'level']
-    case 'outputStyle':
-      return ['output_style', 'name']
-    case 'vimMode':
-      return ['vim', 'mode']
-    case 'sessionName':
-      return ['session_name']
-    case 'agent':
-      return ['agent', 'name']
-    case 'version':
-      return ['version']
-    case 'worktree':
-      return ['worktree', 'name']
-    default:
-      return []
-  }
-}
-
-/** Emit an `if [ -n "$tmp" ]` guard wrapping a decorated assignment. */
+/** Emit an `if [ -n "$var" ]` guard wrapping a decorated assignment. */
 function guardNonEmpty(
-  tmp: string,
+  testVar: string,
   out: string,
   seg: Segment,
-  globalEmoji: boolean,
-  ctx: SegmentEmitCtx,
+  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
 ): string[] {
   const lines: string[] = []
-  lines.push(`if [ -n "$${tmp}" ]; then`)
-  lines.push(...indent(assignDecorated(out, seg, globalEmoji, ctx, pieces, style)))
+  lines.push(`if [ -n "$${testVar}" ]; then`)
+  lines.push(...indent(assignDecorated(out, seg, g, pieces, style)))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -231,36 +350,30 @@ function guardNonEmpty(
 function assignDecorated(
   out: string,
   seg: Segment,
-  globalEmoji: boolean,
-  _ctx: SegmentEmitCtx,
+  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
 ): string[] {
   const valueSpans: ValueSpan[] = [{ span: concreteSpan(pieces, style) }]
-  const all = decorate(seg, globalEmoji, valueSpans)
-  return assignSpans(out, all)
+  return assignSpans(out, decorate(seg, g, valueSpans))
 }
 
 function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
-  const tmp = '_dir'
+  const u = ctx.uid
+  const disp = `_${u}_disp`
   lines.push(`# --- ${SEGMENT_COMMENT.directory} ---`)
-  // cwd ?? workspace.current_dir ?? ''
-  lines.push(
-    `${tmp}=$(jq -r '.cwd // .workspace.current_dir // empty' <<<"$input")`,
-  )
-  lines.push(`_disp="$${tmp}"`)
+  lines.push(`${disp}="$EX_dir"`)
   if (seg.dirStyle === 'basename') {
-    lines.push(`_disp="\${_disp%/}"; _disp="\${_disp##*/}"`)
-    lines.push(`[ -z "$_disp" ] && _disp="$${tmp}"`)
+    lines.push(`${disp}="\${${disp}%/}"; ${disp}="\${${disp}##*/}"`)
+    lines.push(`[ -z "$${disp}" ] && ${disp}="$EX_dir"`)
   } else if (seg.dirStyle === 'tildeHome') {
-    // $HOME at runtime; matches preview's home substitution.
-    lines.push(`if [ "$_disp" = "$HOME" ]; then _disp="~"`)
-    lines.push(`elif [ "\${_disp#"$HOME"/}" != "$_disp" ]; then _disp="~\${_disp#"$HOME"}"; fi`)
+    lines.push(`if [ "$${disp}" = "$HOME" ]; then ${disp}="~"`)
+    lines.push(`elif [ "\${${disp}#"$HOME"/}" != "$${disp}" ]; then ${disp}="~\${${disp}#"$HOME"}"; fi`)
   }
-  lines.push(`if [ -n "$${tmp}" ]; then`)
-  lines.push(...indent(assignDecorated(out, seg, ctx.config.global.emoji, ctx, [v('_disp')], seg.style)))
+  lines.push(`if [ -n "$EX_dir" ]; then`)
+  lines.push(...indent(assignDecorated(out, seg, ctx.config.global.emoji, [v(disp)], seg.style)))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -270,19 +383,16 @@ function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
 function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
+  const u = ctx.uid
   lines.push(`# --- ${SEGMENT_COMMENT[seg.type]} ---`)
-  const pVar = `_${seg.type}_p`
-  const barVar = `_${seg.type}_bar`
-  const pctTextVar = `_${seg.type}_pct`
-  const timerVar = seg.type === 'context' ? null : `_${seg.type}_timer`
+  const pVar = `_${u}_p`
+  const barVar = `_${u}_bar`
+  const pctTextVar = `_${u}_pct`
+  const timerVar = seg.type === 'context' ? null : `_${u}_timer`
 
-  // Presence guard: the SOURCE OBJECT.
-  const presentExpr = metricPresentExpr(seg.type)
-  lines.push(`if ${presentExpr}; then`)
-  // percent (floor + clamp).
-  lines.push(`  ${pVar}=$(jq -r '${metricPctPath(seg.type)} // 0 | floor' <<<"$input")`)
+  lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
+  lines.push(`  ${pVar}="$EX_${u}_p"`)
   lines.push(`  [ "$${pVar}" -lt 0 ] && ${pVar}=0; [ "$${pVar}" -gt 100 ] && ${pVar}=100`)
-  // bar string (only if a bar part exists).
   if (seg.parts.includes('bar')) {
     lines.push(
       `  ${barVar}=$(bar "$${pVar}" ${seg.barWidth} '${sq(seg.barChars.filled)}' '${sq(seg.barChars.empty)}')`,
@@ -291,10 +401,8 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   if (seg.parts.includes('percent')) {
     lines.push(`  ${pctTextVar}="$${pVar}%"`)
   }
-  // timer (session/week with a timer part).
   if (timerVar && seg.parts.includes('timer')) {
-    lines.push(`  ${seg.type}_reset=$(jq -r '${metricResetPath(seg.type)} // empty' <<<"$input")`)
-    lines.push(`  if [ -n "$${seg.type}_reset" ]; then ${timerVar}=$(time_until "$${seg.type}_reset" "$NOW"); else ${timerVar}=''; fi`)
+    lines.push(`  if [ -n "$EX_${u}_reset" ]; then ${timerVar}=$(time_until "$EX_${u}_reset" "$NOW"); else ${timerVar}=''; fi`)
   }
 
   const valueSpans = metricValueSpans(seg, {
@@ -304,84 +412,60 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     timerVar: seg.parts.includes('timer') ? timerVar : null,
     colorFnName: ctx.colorFnName,
   })
-  const all = decorate(seg, ctx.config.global.emoji, valueSpans)
-  lines.push(...indent(assignSpans(out, all)))
+  lines.push(...indent(assignSpans(out, decorate(seg, ctx.config.global.emoji, valueSpans))))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
   return lines
 }
 
-function metricPresentExpr(type: 'context' | 'session' | 'week'): string {
-  if (type === 'context') {
-    return `[ "$(jq -r 'has("context_window")' <<<"$input")" = "true" ]`
-  }
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `[ "$(jq -r '(.rate_limits // {}) | has("${bucket}")' <<<"$input")" = "true" ]`
-}
-function metricPctPath(type: 'context' | 'session' | 'week'): string {
-  if (type === 'context') return '.context_window.used_percentage'
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `.rate_limits.${bucket}.used_percentage`
-}
-function metricResetPath(type: 'context' | 'session' | 'week'): string {
-  const bucket = type === 'session' ? 'five_hour' : 'seven_day'
-  return `.rate_limits.${bucket}.resets_at`
-}
-
 function emitPeak(seg: PeakSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
+  const u = ctx.uid
+  const p = `_${u}` // prefix for peak temps
   lines.push(`# --- ${SEGMENT_COMMENT.peak} ---`)
   lines.push('# Peak window: decompose NOW under TZ, then PURE epoch arithmetic')
   lines.push('# (ptMidnight = NOW - (h*3600+m*60+s)). DST seam +-1h accepted.')
   const days = seg.windowDays.join(' ')
-  lines.push(`read -r _pk_dow _pk_h _pk_m _pk_s < <(peak_decompose "$NOW" '${sq(seg.tz)}')`)
-  lines.push(`_pk_mid=$(( NOW - (_pk_h*3600 + _pk_m*60 + _pk_s) ))`)
-  lines.push(`_pk_today_start=$(( _pk_mid + ${seg.startHour}*3600 ))`)
-  lines.push(`_pk_today_end=$(( _pk_mid + ${seg.endHour}*3600 ))`)
-  lines.push(`_pk_in=0; _pk_target=0`)
-  lines.push(`_pk_days=" ${days} "`)
+  lines.push(`read -r ${p}_dow ${p}_h ${p}_m ${p}_s < <(peak_decompose "$NOW" '${sq(seg.tz)}')`)
+  lines.push(`${p}_mid=$(( NOW - (${p}_h*3600 + ${p}_m*60 + ${p}_s) ))`)
+  lines.push(`${p}_today_start=$(( ${p}_mid + ${seg.startHour}*3600 ))`)
+  lines.push(`${p}_today_end=$(( ${p}_mid + ${seg.endHour}*3600 ))`)
+  lines.push(`${p}_in=0; ${p}_target=0`)
+  lines.push(`${p}_days=" ${days} "`)
   lines.push(
-    `if [[ "$_pk_days" == *" $_pk_dow "* ]] && [ "$NOW" -ge "$_pk_today_start" ] && [ "$NOW" -lt "$_pk_today_end" ]; then`,
+    `if [[ "$${p}_days" == *" $${p}_dow "* ]] && [ "$NOW" -ge "$${p}_today_start" ] && [ "$NOW" -lt "$${p}_today_end" ]; then`,
   )
-  lines.push('  _pk_in=1; _pk_target=$_pk_today_end')
+  lines.push(`  ${p}_in=1; ${p}_target=$${p}_today_end`)
   lines.push('else')
-  lines.push('  for _pk_k in 0 1 2 3 4 5 6 7; do')
-  lines.push('    _pk_dk=$(( (_pk_dow - 1 + _pk_k) % 7 + 1 ))')
-  lines.push('    [[ "$_pk_days" == *" $_pk_dk "* ]] || continue')
-  lines.push(`    _pk_start=$(( _pk_mid + _pk_k*86400 + ${seg.startHour}*3600 ))`)
-  lines.push('    if [ "$_pk_start" -gt "$NOW" ]; then _pk_target=$_pk_start; break; fi')
+  lines.push(`  for ${p}_k in 0 1 2 3 4 5 6 7; do`)
+  lines.push(`    ${p}_dk=$(( (${p}_dow - 1 + ${p}_k) % 7 + 1 ))`)
+  lines.push(`    [[ "$${p}_days" == *" $${p}_dk "* ]] || continue`)
+  lines.push(`    ${p}_start=$(( ${p}_mid + ${p}_k*86400 + ${seg.startHour}*3600 ))`)
+  lines.push(`    if [ "$${p}_start" -gt "$NOW" ]; then ${p}_target=$${p}_start; break; fi`)
   lines.push('  done')
-  lines.push('  [ "$_pk_target" -eq 0 ] && _pk_target=$(( _pk_today_start + 7*86400 ))')
+  lines.push(`  [ "$${p}_target" -eq 0 ] && ${p}_target=$(( ${p}_today_start + 7*86400 ))`)
   lines.push('fi')
 
-  // Value spans: "Peak"/"Off-peak" styled, then optional dim countdown.
-  lines.push('if [ "$_pk_in" -eq 1 ]; then _pk_label=Peak; else _pk_label=Off-peak; fi')
-  const peakStyleParams = concreteParamsOf(seg.peakStyle)
-  const offStyleParams = concreteParamsOf(seg.offPeakStyle)
-  // Build the label span with the right style depending on in-peak (static
-  // params each); choose at runtime.
+  lines.push(`if [ "$${p}_in" -eq 1 ]; then ${p}_label=Peak; else ${p}_label=Off-peak; fi`)
+  const peakStyleParams = concreteParams(seg.peakStyle)
+  const offStyleParams = concreteParams(seg.offPeakStyle)
   lines.push(
-    `if [ "$_pk_in" -eq 1 ]; then _pk_lbl=${spanLiteral('_pk_label', peakStyleParams)}; else _pk_lbl=${spanLiteral('_pk_label', offStyleParams)}; fi`,
+    `if [ "$${p}_in" -eq 1 ]; then ${p}_lbl=${spanLiteral(`${p}_label`, peakStyleParams)}; else ${p}_lbl=${spanLiteral(`${p}_label`, offStyleParams)}; fi`,
   )
 
-  // Compose value: label (already styled in _pk_lbl) + optional countdown.
-  const decoratedPrefix = decoratePrefixSpans(seg, ctx.config.global.emoji)
-  // Assemble: out = prefixSpans + _pk_lbl + [conditional countdown]
-  const parts: string[] = []
-  for (const ps of decoratedPrefix) parts.push(bashSpan(ps.span))
-  parts.push('"$_pk_lbl"')
+  const prefix = decoratePrefixSpans(seg, ctx.config.global.emoji)
+  const parts: string[] = prefix.map((ps) => bashSpan(ps.span))
+  parts.push(`"$${p}_lbl"`)
   lines.push(`${out}=${parts.length ? parts.join('') : `''`}`)
 
   if (seg.showCountdown) {
-    lines.push('_pk_cd=$(time_until "$_pk_target" "$NOW")')
-    // dim parens countdown: " " + "(cd)" dim.
+    lines.push(`${p}_cd=$(time_until "$${p}_target" "$NOW")`)
     const sep = bashSpan(concreteSpan([lit(' ')], undefined))
-    const cd = bashSpan(concreteSpan([lit('('), v('_pk_cd'), lit(')')], { dim: true }))
-    lines.push(`[ -n "$_pk_cd" ] && ${out}+=${sep}${cd}`)
+    const cd = bashSpan(concreteSpan([lit('('), v(`${p}_cd`), lit(')')], { dim: true }))
+    lines.push(`[ -n "$${p}_cd" ] && ${out}+=${sep}${cd}`)
   }
-  // suffix
   if (seg.suffix) {
     lines.push(`${out}+=${bashSpan(concreteSpan([lit(seg.suffix)], undefined))}`)
   }
@@ -394,15 +478,11 @@ function spanLiteral(varName: string, params: string | null): string {
   return `"$${varName}"`
 }
 
-function concreteParamsOf(style: TextStyle | undefined): string | null {
-  return concreteParams(style)
-}
-
 /** Emoji + label + prefix decorate spans (NO value, NO suffix) for segments
  *  whose value we build manually (peak). */
-function decoratePrefixSpans(seg: Segment, globalEmoji: boolean): ValueSpan[] {
+function decoratePrefixSpans(seg: Segment, g: boolean): ValueSpan[] {
   const out: ValueSpan[] = []
-  if (globalEmoji && seg.emoji?.show && seg.emoji.glyph) {
+  if (g && seg.emoji?.show && seg.emoji.glyph) {
     out.push({ span: concreteSpan([lit(seg.emoji.glyph + ' ')], undefined) })
   }
   if (seg.label?.show && seg.label.text) {
@@ -415,22 +495,24 @@ function decoratePrefixSpans(seg: Segment, globalEmoji: boolean): ValueSpan[] {
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
+  const u = ctx.uid
+  const addVar = `_${u}_add`
+  const remVar = `_${u}_rem`
   lines.push(`# --- ${SEGMENT_COMMENT.lines} ---`)
-  lines.push(`if [ "$(jq -r 'has("cost")' <<<"$input")" = "true" ]; then`)
-  lines.push(`  _ln_add=$(jq -r '.cost.total_lines_added // 0' <<<"$input")`)
-  lines.push(`  _ln_rem=$(jq -r '.cost.total_lines_removed // 0' <<<"$input")`)
+  lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
+  lines.push(`  ${addVar}="$EX_${u}_add"`)
+  lines.push(`  ${remVar}="$EX_${u}_rem"`)
   const value: ValueSpan[] = []
   if (seg.linesStyle === 'addedOnly') {
-    value.push({ span: concreteSpan([lit('+'), v('_ln_add')], seg.addedStyle) })
+    value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
   } else if (seg.linesStyle === 'removedOnly') {
-    value.push({ span: concreteSpan([lit('-'), v('_ln_rem')], seg.removedStyle) })
+    value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   } else {
-    value.push({ span: concreteSpan([lit('+'), v('_ln_add')], seg.addedStyle) })
+    value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
     value.push({ span: concreteSpan([lit(' ')], undefined) })
-    value.push({ span: concreteSpan([lit('-'), v('_ln_rem')], seg.removedStyle) })
+    value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   }
-  const all = decorate(seg, ctx.config.global.emoji, value)
-  lines.push(...indent(assignSpans(out, all)))
+  lines.push(...indent(assignSpans(out, decorate(seg, ctx.config.global.emoji, value))))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -440,17 +522,19 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
 function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
+  const u = ctx.uid
+  const numVar = `_${u}_num`
+  const stateVar = `_${u}_state`
   lines.push(`# --- ${SEGMENT_COMMENT.pr} ---`)
-  lines.push(`if [ "$(jq -r 'has("pr")' <<<"$input")" = "true" ]; then`)
-  lines.push(`  _pr_num=$(jq -r '.pr.number // empty' <<<"$input")`)
-  lines.push(`  _pr_state=$(jq -r '.pr.review_state // empty' <<<"$input")`)
-  const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v('_pr_num')], seg.style) }]
+  lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
+  lines.push(`  ${numVar}="$EX_${u}_num"`)
+  const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v(numVar)], seg.style) }]
   if (seg.showState) {
-    value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: '_pr_state' })
-    value.push({ span: concreteSpan([v('_pr_state')], seg.style), whenVar: '_pr_state' })
+    lines.push(`  ${stateVar}="$EX_${u}_state"`)
+    value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
+    value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
-  const all = decorate(seg, ctx.config.global.emoji, value)
-  lines.push(...indent(assignSpans(out, all)))
+  lines.push(...indent(assignSpans(out, decorate(seg, ctx.config.global.emoji, value))))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -460,15 +544,18 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
 function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
+  const u = ctx.uid
+  const wVar = `_${u}_w`
+  const sepVar = `_${u}_sep`
   lines.push(`# --- ${SEGMENT_COMMENT.separator} ---`)
   if (seg.width === 'full') {
-    lines.push(`_sep_w="\${COLUMNS:-80}"`)
+    lines.push(`${wVar}="\${COLUMNS:-80}"`)
   } else {
-    lines.push(`_sep_w=${seg.width}`)
+    lines.push(`${wVar}=${seg.width}`)
   }
-  lines.push(`if [ "$_sep_w" -gt 0 ] && [ -n '${sq(seg.fill)}' ]; then`)
-  lines.push(`  _sep=$(printf '${sq(seg.fill)}%.0s' $(seq 1 "$_sep_w"))`)
-  lines.push(...indent(assignDecorated(out, seg, ctx.config.global.emoji, ctx, [v('_sep')], seg.style)))
+  lines.push(`if [ "$${wVar}" -gt 0 ] && [ -n '${sq(seg.fill)}' ]; then`)
+  lines.push(`  ${sepVar}=$(printf '${sq(seg.fill)}%.0s' $(seq 1 "$${wVar}"))`)
+  lines.push(...indent(assignDecorated(out, seg, ctx.config.global.emoji, [v(sepVar)], seg.style)))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -523,9 +610,11 @@ export const bashEmitter: Emitter = {
       'input=$(cat)',
       '# Injectable clock (PMSL_NOW) so output is reproducible/testable.',
       'NOW="${PMSL_NOW:-$(date +%s)}"',
-      '# Working dir for git branch detection.',
-      'DIR=$(jq -r \'.cwd // .workspace.current_dir // empty\' <<<"$input")',
     ]
+  },
+
+  extraction(config, uidOf) {
+    return emitExtraction(collectFields(config, uidOf))
   },
 
   baseHelpers(needsThreshold) {
@@ -571,14 +660,12 @@ export const bashEmitter: Emitter = {
   assembleRows(config, rows: RowPlan[]) {
     const lines: string[] = []
     lines.push('# --- Row assembly ---')
-    lines.push(
-      '# A dropped (empty) segment contributes NOTHING, including its join.',
-    )
+    lines.push('# A dropped (empty) segment contributes NOTHING, including its join.')
     for (const plan of rows) {
       lines.push(`${plan.rowVar}=''`)
       for (let i = 0; i < plan.segments.length; i++) {
         const ps = plan.segments[i]
-        const join = (ps.seg.joinBefore ?? plan.joiner)
+        const join = ps.seg.joinBefore ?? plan.joiner
         if (i === 0) {
           lines.push(`[ -n "$${ps.varName}" ] && ${plan.rowVar}="$${ps.varName}"`)
         } else {
