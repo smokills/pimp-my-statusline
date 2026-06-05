@@ -48,8 +48,14 @@ export function buildMaximalConfig(petEnabled: boolean): StatuslineConfig {
 export interface SerializedMock {
   /** The stdin JSON the scripts read (no _-prefixed sim fields). */
   json: string
-  /** Env to pin the clock / branch / columns. */
-  env: { PMSL_NOW: string; PMSL_GIT_BRANCH: string; COLUMNS: string; LC_ALL: string }
+  /** Env to pin the clock / branch / columns / home. */
+  env: {
+    PMSL_NOW: string
+    PMSL_GIT_BRANCH: string
+    COLUMNS: string
+    LC_ALL: string
+    HOME: string
+  }
 }
 
 /** Strip the preview-only `_`-prefixed sim fields and map them to env. */
@@ -65,6 +71,12 @@ export function serializeMock(mock: MockData): SerializedMock {
       PMSL_GIT_BRANCH: mock._gitBranch ?? '',
       COLUMNS: String(mock._columns),
       LC_ALL: 'C.UTF-8',
+      // The scripts collapse a leading $HOME to '~' (tildeHome), and the
+      // preview does the same substitution with mock._home — so the spawned
+      // scripts must see THAT home, not the runner's. Unpinned, the whole
+      // parity battery diverges on the directory segment whenever the real
+      // $HOME differs from the mock's (e.g. /home/runner on CI).
+      HOME: mock._home ?? '/home/vito',
     },
   }
 }
