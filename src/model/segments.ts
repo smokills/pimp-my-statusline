@@ -1,0 +1,574 @@
+// Segment registry — the shared semantics layer. SEGMENTS[type].evaluate(...)
+// is the canonical renderer the preview uses AND the spec the bash/python/node
+// generators mirror byte-for-byte. Each entry also declares the runtime
+// `helpers` it needs (so codegen emits only used helpers) and its JSON
+// `sources` (docs + mock wiring).
+//
+// Absence semantics: when a segment's required source is absent, evaluate()
+// returns `{ spans: [] }` so the row join drops it cleanly (no dangling joiner).
+// "Absent" (key missing) and "null" are distinct: e.g. context_window present
+// with used_percentage null ⇒ render 0%, but context_window absent ⇒ dropped.
+
+import type {
+  DirectorySegment,
+  LinesSegment,
+  MetricSegment,
+  PeakSegment,
+  PrSegment,
+  Segment,
+  SegmentType,
+  SeparatorSegment,
+  SimpleSegment,
+  StaticTextSegment,
+  TextStyle,
+  ThresholdStop,
+  RenderCtx,
+  SegmentRender,
+} from './types'
+import type { MockData } from './mock'
+import {
+  barString,
+  fmtCost,
+  fmtDuration,
+  peakState,
+  timeUntil,
+  truncPct,
+} from './evaluate-helpers'
+
+export type HelperId =
+  | 'colorPct'
+  | 'bar'
+  | 'timeUntil'
+  | 'peak'
+  | 'petFrame'
+  | 'pad'
+  | 'truncCols'
+  | 'fmtCost'
+  | 'fmtDuration'
+  | 'gitBranch'
+
+export interface SegmentDef {
+  type: SegmentType
+  label: string // UI display name
+  sources: string[] // JSON paths this segment reads
+  metric: boolean // gauge-capable?
+  emojiDefault?: string
+  defaults: () => Omit<Segment, 'id'>
+  helpers: HelperId[]
+  evaluate(seg: Segment, mock: MockData, ctx: RenderCtx): SegmentRender
+}
+
+// ---------------------------------------------------------------------------
+// Span helpers
+// ---------------------------------------------------------------------------
+
+const EMPTY: SegmentRender = { spans: [] }
+
+function span(text: string, style?: TextStyle) {
+  return style ? { text, style } : { text }
+}
+
+/** Prepend label and/or emoji spans, then wrap value spans with prefix/suffix.
+ *  Returns empty if `valueSpans` is empty (so absence cleanly drops the segment). */
+function decorate(
+  seg: Segment,
+  ctx: RenderCtx,
+  valueSpans: SegmentRender['spans'],
+): SegmentRender {
+  if (valueSpans.length === 0) return EMPTY
+  const spans: SegmentRender['spans'] = []
+  if (ctx.emoji && seg.emoji?.show && seg.emoji.glyph) {
+    spans.push(span(seg.emoji.glyph + ' '))
+  }
+  if (seg.label?.show && seg.label.text) {
+    spans.push(span(seg.label.text + ' ', seg.label.style))
+  }
+  if (seg.prefix) spans.push(span(seg.prefix))
+  spans.push(...valueSpans)
+  if (seg.suffix) spans.push(span(seg.suffix))
+  return { spans }
+}
+
+const defaultThresholds: ThresholdStop[] = [
+  { at: 90, code: 31, ansi16: true },
+  { at: 70, code: 33, ansi16: true },
+  { at: 0, code: 32, ansi16: true },
+]
+
+// ---------------------------------------------------------------------------
+// Metric segments (context / session / week)
+// ---------------------------------------------------------------------------
+
+/** Resolve the percentage + reset for a metric segment from the mock.
+ *  Returns null when the SOURCE OBJECT is absent (⇒ segment dropped). */
+function metricSource(
+  type: 'context' | 'session' | 'week',
+  mock: MockData,
+): { pct: number; resetsAt: number | null } | null {
+  if (type === 'context') {
+    if (mock.context_window === undefined) return null
+    // present-but-null used_percentage ⇒ 0; context has no reset timestamp.
+    return { pct: truncPct(mock.context_window.used_percentage), resetsAt: null }
+  }
+  const bucket =
+    type === 'session' ? mock.rate_limits?.five_hour : mock.rate_limits?.seven_day
+  if (bucket === undefined) return null
+  return { pct: truncPct(bucket.used_percentage), resetsAt: bucket.resets_at }
+}
+
+function evaluateMetric(
+  seg: MetricSegment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  const src = metricSource(seg.type, mock)
+  if (src === null) return EMPTY
+  const { pct, resetsAt } = src
+
+  const value: SegmentRender['spans'] = []
+  for (let i = 0; i < seg.parts.length; i++) {
+    const part = seg.parts[i]
+    const pieces: SegmentRender['spans'] = []
+    if (part === 'bar') {
+      const bar = barString(
+        pct,
+        seg.barWidth,
+        seg.barChars.filled,
+        seg.barChars.empty,
+      )
+      pieces.push(span(bar, seg.barStyle ?? seg.valueStyle))
+    } else if (part === 'percent') {
+      pieces.push(span(`${pct}%`, seg.valueStyle))
+    } else if (part === 'timer') {
+      // Timer is only meaningful for session/week and only when a reset is
+      // present AND the countdown is non-empty. Context renders an empty timer.
+      if (resetsAt !== null) {
+        const t = timeUntil(resetsAt, mock._now)
+        if (t !== '') pieces.push(span(`(${t})`, seg.timerStyle))
+      }
+    }
+    if (pieces.length === 0) continue
+    // Single space between rendered parts.
+    if (value.length > 0) value.push(span(' '))
+    value.push(...pieces)
+  }
+  return decorate(seg, ctx, value)
+}
+
+// ---------------------------------------------------------------------------
+// Per-type evaluators
+// ---------------------------------------------------------------------------
+
+function evaluateDirectory(
+  seg: DirectorySegment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  const cwd = mock.cwd ?? mock.workspace.current_dir ?? ''
+  if (cwd === '') return EMPTY
+  let display = cwd
+  if (seg.dirStyle === 'basename') {
+    const parts = cwd.replace(/\/+$/, '').split('/')
+    display = parts[parts.length - 1] || cwd
+  } else if (seg.dirStyle === 'tildeHome') {
+    const home = mock._home ?? '/home/vito'
+    if (cwd === home) display = '~'
+    else if (cwd.startsWith(home + '/')) display = '~' + cwd.slice(home.length)
+  }
+  return decorate(seg, ctx, [span(display, seg.style)])
+}
+
+function evaluateSimple(
+  seg: SimpleSegment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  let value: string | undefined
+  switch (seg.type) {
+    case 'gitBranch':
+      value = mock._gitBranch || undefined // empty/absent → dropped
+      break
+    case 'model':
+      value = mock.model.display_name || undefined
+      break
+    case 'effort':
+      value = mock.effort?.level
+      break
+    case 'cost':
+      value = mock.cost ? fmtCost(mock.cost.total_cost_usd) : undefined
+      break
+    case 'duration':
+      value = mock.cost ? fmtDuration(mock.cost.total_duration_ms) : undefined
+      break
+    case 'outputStyle':
+      value = mock.output_style?.name
+      break
+    case 'vimMode':
+      value = mock.vim?.mode
+      break
+    case 'sessionName':
+      value = mock.session_name
+      break
+    case 'agent':
+      value = mock.agent?.name
+      break
+    case 'thinking':
+      value = mock.thinking?.enabled ? 'thinking' : undefined
+      break
+    case 'version':
+      value = mock.version || undefined
+      break
+    case 'worktree':
+      value = mock.worktree?.name
+      break
+  }
+  if (value === undefined || value === '') return EMPTY
+  return decorate(seg, ctx, [span(value, seg.style)])
+}
+
+function evaluatePeak(
+  seg: PeakSegment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  const { inPeak, target } = peakState(
+    mock._now,
+    seg.tz,
+    seg.windowDays,
+    seg.startHour,
+    seg.endHour,
+  )
+  const value: SegmentRender['spans'] = []
+  value.push(
+    span(inPeak ? 'Peak' : 'Off-peak', inPeak ? seg.peakStyle : seg.offPeakStyle),
+  )
+  if (seg.showCountdown) {
+    const t = timeUntil(target, mock._now)
+    if (t !== '') {
+      value.push(span(' '))
+      value.push(span(`(${t})`, { dim: true }))
+    }
+  }
+  return decorate(seg, ctx, value)
+}
+
+function evaluateLines(
+  seg: LinesSegment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  if (mock.cost === undefined) return EMPTY
+  const added = mock.cost.total_lines_added
+  const removed = mock.cost.total_lines_removed
+  const value: SegmentRender['spans'] = []
+  if (seg.linesStyle === 'addedOnly') {
+    value.push(span(`+${added}`, seg.addedStyle))
+  } else if (seg.linesStyle === 'removedOnly') {
+    value.push(span(`-${removed}`, seg.removedStyle))
+  } else {
+    value.push(span(`+${added}`, seg.addedStyle))
+    value.push(span(' '))
+    value.push(span(`-${removed}`, seg.removedStyle))
+  }
+  return decorate(seg, ctx, value)
+}
+
+function evaluatePr(
+  seg: PrSegment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  if (mock.pr === undefined) return EMPTY
+  const value: SegmentRender['spans'] = [span(`#${mock.pr.number}`, seg.style)]
+  if (seg.showState && mock.pr.review_state) {
+    value.push(span(' '))
+    value.push(span(mock.pr.review_state, seg.style))
+  }
+  return decorate(seg, ctx, value)
+}
+
+function evaluateSeparator(
+  seg: SeparatorSegment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  const count = seg.width === 'full' ? mock._columns : seg.width
+  if (count <= 0 || seg.fill === '') return EMPTY
+  return decorate(seg, ctx, [span(seg.fill.repeat(count), seg.style)])
+}
+
+function evaluateStaticText(
+  seg: StaticTextSegment,
+  _mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  if (seg.text === '') return EMPTY
+  return decorate(seg, ctx, [span(seg.text, seg.style)])
+}
+
+// ---------------------------------------------------------------------------
+// Default-factory helpers
+// ---------------------------------------------------------------------------
+
+function baseDefaults(type: SegmentType): Omit<SegmentBaseNoId, 'type'> & {
+  type: SegmentType
+} {
+  return { type, enabled: true }
+}
+type SegmentBaseNoId = Omit<Segment, 'id'>
+
+function metricDefaults(
+  type: 'context' | 'session' | 'week',
+  label: string,
+  parts: MetricSegment['parts'],
+): Omit<MetricSegment, 'id'> {
+  return {
+    type,
+    enabled: true,
+    label: { text: label, show: true },
+    parts,
+    barWidth: 5,
+    barChars: { filled: '█', empty: '░' },
+    valueStyle: { color: { kind: 'threshold', stops: defaultThresholds } },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Registry
+// ---------------------------------------------------------------------------
+
+export const SEGMENTS: Record<SegmentType, SegmentDef> = {
+  directory: {
+    type: 'directory',
+    label: 'Directory',
+    sources: ['cwd', 'workspace.current_dir'],
+    metric: false,
+    defaults: () =>
+      ({ ...baseDefaults('directory'), dirStyle: 'tildeHome' }) as Omit<
+        DirectorySegment,
+        'id'
+      >,
+    helpers: [],
+    evaluate: (seg, mock, ctx) =>
+      evaluateDirectory(seg as DirectorySegment, mock, ctx),
+  },
+  gitBranch: {
+    type: 'gitBranch',
+    label: 'Git branch',
+    sources: ['_gitBranch'],
+    metric: false,
+    defaults: () => baseDefaults('gitBranch') as Omit<SimpleSegment, 'id'>,
+    helpers: ['gitBranch'],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  model: {
+    type: 'model',
+    label: 'Model',
+    sources: ['model.display_name'],
+    metric: false,
+    defaults: () => baseDefaults('model') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  effort: {
+    type: 'effort',
+    label: 'Effort',
+    sources: ['effort.level'],
+    metric: false,
+    defaults: () => baseDefaults('effort') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  context: {
+    type: 'context',
+    label: 'Context',
+    sources: ['context_window.used_percentage'],
+    metric: true,
+    defaults: () => metricDefaults('context', 'Context', ['percent']),
+    helpers: ['colorPct', 'bar'],
+    evaluate: (seg, mock, ctx) => evaluateMetric(seg as MetricSegment, mock, ctx),
+  },
+  session: {
+    type: 'session',
+    label: 'Session (5h)',
+    sources: [
+      'rate_limits.five_hour.used_percentage',
+      'rate_limits.five_hour.resets_at',
+    ],
+    metric: true,
+    defaults: () =>
+      metricDefaults('session', 'Session', ['bar', 'percent', 'timer']),
+    helpers: ['colorPct', 'bar', 'timeUntil'],
+    evaluate: (seg, mock, ctx) => evaluateMetric(seg as MetricSegment, mock, ctx),
+  },
+  week: {
+    type: 'week',
+    label: 'Week (7d)',
+    sources: [
+      'rate_limits.seven_day.used_percentage',
+      'rate_limits.seven_day.resets_at',
+    ],
+    metric: true,
+    defaults: () => metricDefaults('week', 'Week', ['bar', 'percent']),
+    helpers: ['colorPct', 'bar', 'timeUntil'],
+    evaluate: (seg, mock, ctx) => evaluateMetric(seg as MetricSegment, mock, ctx),
+  },
+  peak: {
+    type: 'peak',
+    label: 'Peak window',
+    sources: [],
+    metric: false,
+    defaults: () =>
+      ({
+        ...baseDefaults('peak'),
+        showCountdown: true,
+        tz: 'America/Los_Angeles',
+        windowDays: [1, 2, 3, 4, 5],
+        startHour: 5,
+        endHour: 11,
+      }) as Omit<PeakSegment, 'id'>,
+    helpers: ['peak', 'timeUntil'],
+    evaluate: (seg, mock, ctx) => evaluatePeak(seg as PeakSegment, mock, ctx),
+  },
+  cost: {
+    type: 'cost',
+    label: 'Cost',
+    sources: ['cost.total_cost_usd'],
+    metric: false,
+    defaults: () => baseDefaults('cost') as Omit<SimpleSegment, 'id'>,
+    helpers: ['fmtCost'],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  duration: {
+    type: 'duration',
+    label: 'Duration',
+    sources: ['cost.total_duration_ms'],
+    metric: false,
+    defaults: () => baseDefaults('duration') as Omit<SimpleSegment, 'id'>,
+    helpers: ['fmtDuration'],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  lines: {
+    type: 'lines',
+    label: 'Lines changed',
+    sources: ['cost.total_lines_added', 'cost.total_lines_removed'],
+    metric: false,
+    defaults: () =>
+      ({ ...baseDefaults('lines'), linesStyle: 'combined' }) as Omit<
+        LinesSegment,
+        'id'
+      >,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateLines(seg as LinesSegment, mock, ctx),
+  },
+  outputStyle: {
+    type: 'outputStyle',
+    label: 'Output style',
+    sources: ['output_style.name'],
+    metric: false,
+    defaults: () => baseDefaults('outputStyle') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  vimMode: {
+    type: 'vimMode',
+    label: 'Vim mode',
+    sources: ['vim.mode'],
+    metric: false,
+    defaults: () => baseDefaults('vimMode') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  sessionName: {
+    type: 'sessionName',
+    label: 'Session name',
+    sources: ['session_name'],
+    metric: false,
+    defaults: () => baseDefaults('sessionName') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  agent: {
+    type: 'agent',
+    label: 'Agent',
+    sources: ['agent.name'],
+    metric: false,
+    defaults: () => baseDefaults('agent') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  pr: {
+    type: 'pr',
+    label: 'Pull request',
+    sources: ['pr.number', 'pr.review_state'],
+    metric: false,
+    defaults: () =>
+      ({ ...baseDefaults('pr'), showState: false }) as Omit<PrSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluatePr(seg as PrSegment, mock, ctx),
+  },
+  thinking: {
+    type: 'thinking',
+    label: 'Thinking',
+    sources: ['thinking.enabled'],
+    metric: false,
+    defaults: () => baseDefaults('thinking') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  version: {
+    type: 'version',
+    label: 'Version',
+    sources: ['version'],
+    metric: false,
+    defaults: () => baseDefaults('version') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  worktree: {
+    type: 'worktree',
+    label: 'Worktree',
+    sources: ['worktree.name'],
+    metric: false,
+    defaults: () => baseDefaults('worktree') as Omit<SimpleSegment, 'id'>,
+    helpers: [],
+    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+  },
+  separator: {
+    type: 'separator',
+    label: 'Separator',
+    sources: ['_columns'],
+    metric: false,
+    defaults: () =>
+      ({ ...baseDefaults('separator'), fill: '─', width: 'full' }) as Omit<
+        SeparatorSegment,
+        'id'
+      >,
+    helpers: ['truncCols'],
+    evaluate: (seg, mock, ctx) =>
+      evaluateSeparator(seg as SeparatorSegment, mock, ctx),
+  },
+  staticText: {
+    type: 'staticText',
+    label: 'Static text',
+    sources: [],
+    metric: false,
+    defaults: () =>
+      ({ ...baseDefaults('staticText'), text: '' }) as Omit<
+        StaticTextSegment,
+        'id'
+      >,
+    helpers: [],
+    evaluate: (seg, mock, ctx) =>
+      evaluateStaticText(seg as StaticTextSegment, mock, ctx),
+  },
+}
+
+/** Convenience: evaluate any segment by dispatching on its `type`. */
+export function evaluateSegment(
+  seg: Segment,
+  mock: MockData,
+  ctx: RenderCtx,
+): SegmentRender {
+  return SEGMENTS[seg.type].evaluate(seg, mock, ctx)
+}
