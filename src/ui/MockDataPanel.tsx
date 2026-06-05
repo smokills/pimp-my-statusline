@@ -160,7 +160,7 @@ export function MockDataPanel(): JSX.Element {
           />
         </div>
 
-        {/* --- session facts: model, effort, branch, terminal width --- */}
+        {/* --- session facts: model, effort, branch --- */}
         <div className="stack-2">
           <span className="label">session</span>
           <label className="field">
@@ -224,15 +224,6 @@ export function MockDataPanel(): JSX.Element {
               aria-label="git branch"
             />
           </label>
-          <Slider
-            label="terminal width"
-            value={mock._columns}
-            display={`${mock._columns} cols`}
-            onChange={s.setColumns}
-            min={20}
-            max={200}
-          />
-          <span className="comment">width only matters to full-width separators</span>
         </div>
 
         {/* --- presence: which optional stdin objects exist at all --- */}

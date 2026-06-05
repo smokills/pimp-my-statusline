@@ -51,7 +51,6 @@ export interface MockState {
   setVimMode(mode: VimMode): void
   setPrState(state: PrReviewState): void
   setGitBranch(branch: string): void
-  setColumns(cols: number): void
 }
 
 function pct(n: number): number {
@@ -268,8 +267,4 @@ export const useMockStore = create<MockState>()((set) => ({
     }),
   setGitBranch: (branch) =>
     set((st) => ({ mock: { ...st.mock, _gitBranch: branch } })),
-  setColumns: (cols) =>
-    set((st) => ({
-      mock: { ...st.mock, _columns: Math.max(20, Math.min(200, Math.round(cols))) },
-    })),
 }))

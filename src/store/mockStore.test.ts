@@ -40,13 +40,3 @@ describe('reset countdown scrubbers', () => {
     expect(m.rate_limits?.five_hour?.resets_at).toBe(m._now + 300)
   })
 })
-
-describe('columns clamp', () => {
-  it('clamps to [20, 200]', () => {
-    const s = useMockStore.getState()
-    s.setColumns(5)
-    expect(useMockStore.getState().mock._columns).toBe(20)
-    s.setColumns(999)
-    expect(useMockStore.getState().mock._columns).toBe(200)
-  })
-})
