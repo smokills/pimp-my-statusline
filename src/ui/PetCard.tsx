@@ -1,10 +1,11 @@
-// PetCard — the STANDALONE global pet configuration, hosted in the builder
-// sidebar above the element library. The pet is not an element: it has a
-// master enable/disable toggle here, and when enabled it is ALWAYS drawn at
-// the left of the statusline with the rows following to its right.
+// PetCard — the GLOBAL pet configuration, hosted in the build strip under the
+// preview (behind the "Pet" expander), with the other config-wide controls.
+// The pet is not an element: it has a master enable/disable toggle here, and
+// when enabled it is ALWAYS drawn at the left of the statusline with the rows
+// following to its right.
 //
 // Deliberately minimal: pick a pet, set the gap. Everything else is visible
-// live in the terminal preview above (drag the mock sliders and watch the pet
+// live in the terminal preview above (scrub the mock sliders and watch the pet
 // react) — no duplicated mood preview here. The mood is driven by the context
 // window percentage.
 
@@ -17,9 +18,9 @@ export function PetCard(): JSX.Element {
   const updatePet = useConfigStore((s) => s.updatePet)
 
   return (
-    <section className="side-card" aria-label="Pet settings">
-      <div className="spread side-card-head">
-        <span className="section-head">Pet</span>
+    <section className="card card-pad stack" aria-label="Pet settings">
+      <div className="spread">
+        <h3 className="section-head">Pet</h3>
         <label className="check">
           <input
             type="checkbox"
@@ -43,21 +44,13 @@ export function PetCard(): JSX.Element {
         <div className="stack">
           <div className="stack-2">
             <span className="label">roster</span>
-            <div className="stack-2 scroll-y" style={{ maxHeight: 240, paddingRight: 4 }}>
+            <div className="pet-roster">
               {PETS.map((p) => (
                 <button
                   key={p.id}
                   type="button"
-                  className="chip"
+                  className="chip pet-chip"
                   data-selected={pet.petId === p.id}
-                  style={{
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: 2,
-                    minHeight: 'auto',
-                    padding: 8,
-                    width: '100%',
-                  }}
                   aria-pressed={pet.petId === p.id}
                   onClick={() => updatePet({ petId: p.id })}
                 >
@@ -72,7 +65,7 @@ export function PetCard(): JSX.Element {
             </div>
           </div>
 
-          <label className="field">
+          <label className="field" style={{ maxWidth: 320 }}>
             <span className="spread">
               <span className="label">gap</span>
               <span className="mono" style={{ color: 'var(--accent)' }}>{pet.gap}</span>
@@ -89,8 +82,8 @@ export function PetCard(): JSX.Element {
           </label>
 
           <span className="comment">
-            drawn at the left of the statusline; open “Sample data” under the
-            preview and scrub ctx to see it react
+            drawn at the left of the statusline; scrub ctx in “Sample data” to
+            see it react
           </span>
         </div>
       )}

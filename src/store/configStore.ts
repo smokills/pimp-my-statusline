@@ -29,7 +29,7 @@ export interface ConfigState {
   selectedSegmentId: string | null
 
   // selection — the selected segment is shown in the docked ELEMENT inspector
-  // panel (pet and global settings live in their own standalone sidebar cards).
+  // panel (pet and global settings live in the build strip under the preview).
   selectSegment(id: string | null): void
 
   // segment mutation

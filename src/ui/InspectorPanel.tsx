@@ -4,7 +4,7 @@
 // Renders only when a chip is selected; Esc and the X button dismiss it.
 //
 // This inspector is strictly per-element: the pet and the global display
-// settings live in their own standalone sidebar cards (PetCard / SettingsCard).
+// settings live in the build strip under the preview (PetCard / SettingsCard).
 
 import { useEffect, useRef, type JSX } from 'react'
 import { useConfigStore } from '../store/configStore'

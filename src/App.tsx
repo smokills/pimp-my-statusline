@@ -1,11 +1,12 @@
 // App — the routed shell. '/' renders the marketing Landing page; '#/build'
 // renders the full-screen Builder. Routing is the tiny hash-based useHashRoute
 // (no router lib). The Builder hosts the sticky TerminalMockup preview, the
-// prefab BuildStrip (with the sample-data expander), the editor zone (rows
-// canvas + sidebar). The sidebar swaps between the standalone cards and the
-// docked, non-modal element inspector while a chip is selected, so the preview
-// stays live during editing. It also owns the export/import modals, the skip
-// link and the toast provider.
+// BuildStrip (prefab builds + the config-wide Pet / Settings / Sample data
+// expanders) and the editor zone (rows canvas + sidebar). The sidebar is
+// strictly element-scoped: the library, swapped for the docked, non-modal
+// element inspector while a chip is selected, so the preview stays live during
+// editing. It also owns the export/import modals, the skip link and the toast
+// provider.
 
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { ToastProvider, useToast } from './ui/Toast'
@@ -16,8 +17,6 @@ import { TerminalMockup } from './ui/TerminalMockup'
 import { AnsiPreview } from './ui/AnsiPreview'
 import { BuildStrip } from './ui/BuildStrip'
 import { ElementLibrary } from './ui/ElementLibrary'
-import { PetCard } from './ui/PetCard'
-import { SettingsCard } from './ui/SettingsCard'
 import { RowCanvas } from './ui/RowCanvas'
 import { InspectorPanel } from './ui/InspectorPanel'
 import { PlacedSegmentPicker } from './ui/PlacedSegmentPicker'
@@ -54,7 +53,7 @@ function Builder(): JSX.Element {
   const firstRowId = useConfigStore((s) => s.config.rows[0]?.id ?? null)
   const selectedSegmentId = useConfigStore((s) => s.selectedSegmentId)
   // Derive selection from whether the id resolves to a placed segment so a stale
-  // id (e.g. a removed segment) falls back to the standalone sidebar cards.
+  // id (e.g. a removed segment) falls back to the element library.
   const selected = useConfigStore(
     (s) =>
       s.selectedSegmentId != null &&
@@ -109,8 +108,9 @@ function Builder(): JSX.Element {
         </div>
       </div>
 
-      {/* Prefab builds (one-click starting configs) + sample-data expander.
-          Deliberately OUTSIDE the sticky hero so it scrolls away while editing. */}
+      {/* The global zone: prefab builds + the config-wide Pet / Settings /
+          Sample data expanders. Deliberately OUTSIDE the sticky hero so it
+          scrolls away while editing. */}
       <div className="build-zone">
         <BuildStrip />
       </div>
@@ -138,15 +138,14 @@ function Builder(): JSX.Element {
         <div className={`editor-library ${mobileTab === 'style' ? '' : 'mobile-hide'}`}>
           {selected ? (
             // Editing an element: the docked, non-modal inspector replaces the
-            // standalone cards. The preview/canvas stay live while editing.
+            // library. The preview/canvas stay live while editing. The sidebar
+            // is strictly element-scoped — the config-wide controls (pet,
+            // settings, sample data) live in the build strip under the preview.
             <InspectorPanel />
           ) : (
             <>
-              {/* PickerCard is the mobile-only selection path; the pet and the
-                  global settings are standalone, config-wide cards. */}
+              {/* PickerCard is the mobile-only selection path. */}
               <PickerCard />
-              <PetCard />
-              <SettingsCard />
               <ElementLibrary focusedRowId={effectiveFocusRow} />
             </>
           )}

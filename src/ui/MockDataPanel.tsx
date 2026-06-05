@@ -87,7 +87,7 @@ export function MockDataPanel(): JSX.Element {
   return (
     <section className="card card-pad stack" aria-label="Mock session data">
       <div className="spread">
-        <h2 className="section-head">Mock Session</h2>
+        <h3 className="section-head">Mock Session</h3>
         <span className="comment">{presetName}</span>
       </div>
 
