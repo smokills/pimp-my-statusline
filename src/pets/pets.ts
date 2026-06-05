@@ -256,7 +256,7 @@ const fish: Pet = {
   },
 }
 
-export const PETS: Pet[] = [cactus, cat, dog, owl, robot, fish]
+export const PETS: readonly Pet[] = [cactus, cat, dog, owl, robot, fish]
 
 export function getPet(id: string): Pet | undefined {
   return PETS.find((p) => p.id === id)

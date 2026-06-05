@@ -21,6 +21,9 @@ export function stripAnsi(s: string): string {
 
 /** Visible (printed) length: characters that actually occupy a terminal cell. */
 export function visibleLen(s: string): number {
+  // `.length` counts UTF-16 code units; this is correct only because the charset
+  // invariant (isAllowedChar) forbids multi-unit characters. The bash/python
+  // ports measure length differently and rely on the same invariant.
   return stripAnsi(s).length
 }
 

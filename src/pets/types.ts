@@ -38,6 +38,9 @@ export const DEFAULT_PET_THRESHOLDS: PetThresholds = {
  * Colors a contiguous run of cells within one frame row.
  * `color` is an xterm-256 index. ANSI is zero-width, so spans never affect
  * the fixed-grid width invariant.
+ *
+ * When spans overlap on a row, the LATER span in the array wins for the
+ * overlapped columns (colorizeRow fills a color table in array order).
  */
 export interface Span {
   row: number
