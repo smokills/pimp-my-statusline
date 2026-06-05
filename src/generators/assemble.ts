@@ -53,13 +53,11 @@ function buildVarNames(config: StatuslineConfig): Map<Segment, string> {
 // Helper union
 // ---------------------------------------------------------------------------
 
-// A stable emit order so output is deterministic and dependencies precede
-// dependents (peak uses time_until; nothing else has ordering constraints).
+// A stable emit order so output is deterministic.
 const HELPER_ORDER: HelperId[] = [
   'gitBranch',
   'bar',
   'timeUntil',
-  'peak',
   'fmtCost',
   'fmtDuration',
   'truncCols',
@@ -107,8 +105,6 @@ function collectThresholdStops(config: StatuslineConfig): ThresholdStop[][] {
       visitStyle(s.valueStyle as TextStyle | undefined)
       visitStyle(s.barStyle as TextStyle | undefined)
       visitStyle(s.timerStyle as TextStyle | undefined)
-      visitStyle(s.peakStyle as TextStyle | undefined)
-      visitStyle(s.offPeakStyle as TextStyle | undefined)
       visitStyle(s.addedStyle as TextStyle | undefined)
       visitStyle(s.removedStyle as TextStyle | undefined)
       visitStyle(seg.label?.style)

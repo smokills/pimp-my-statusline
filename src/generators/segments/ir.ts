@@ -9,7 +9,7 @@ import type { MetricSegment, Segment, TextStyle } from '../../model/types'
 import type { PlanSpan, TextPiece } from '../spanplan'
 import { concreteSpan, lit, styledSpan, v } from '../spanplan'
 
-/** A value span plus optional run-time presence condition (the metric/peak
+/** A value span plus optional run-time presence condition (the metric
  *  timer is present only when its countdown string is non-empty). When
  *  `whenVar` is set, the emitter wraps THIS span AND its leading separator in a
  *  runtime conditional. */

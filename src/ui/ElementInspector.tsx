@@ -467,9 +467,6 @@ export function ElementInspector({ seg }: { seg: Segment }): JSX.Element {
     case 'staticText':
       body = <StaticTextBody seg={seg} />
       break
-    case 'peak':
-      body = <SimpleBody seg={seg} />
-      break
     default:
       body = <SimpleBody seg={seg} />
   }

@@ -112,7 +112,7 @@ export function MockDataPanel(): JSX.Element {
       <Slider label="7d week" value={weekPct} onChange={s.setWeekPct} disabled={!mock.rate_limits?.seven_day} />
 
       <hr className="divider" />
-      <span className="label">clock (drives peak)</span>
+      <span className="label">clock (drives countdowns)</span>
       <div className="row-flex">
         <select
           className="select-input"

@@ -24,14 +24,13 @@ describe('defaultConfig shape', () => {
     expect(sep.fill).toBe('─')
   })
 
-  it('row 3 ordered model effort context session week peak', () => {
+  it('row 3 ordered model effort context session week', () => {
     expect(cfg.rows[2].segments.map((s) => s.type)).toEqual([
       'model',
       'effort',
       'context',
       'session',
       'week',
-      'peak',
     ])
   })
 

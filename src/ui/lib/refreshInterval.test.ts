@@ -8,14 +8,8 @@ function rowsOnly(rows: Row[]): StatuslineConfig {
 }
 
 describe('needsRefreshInterval', () => {
-  it('is true for the default preset (peak + session timer present)', () => {
+  it('is true for the default preset (session timer present)', () => {
     expect(needsRefreshInterval(defaultConfig())).toBe(true)
-  })
-
-  it('is true when a peak segment is present', () => {
-    const cfg = defaultConfig()
-    // strip everything but keep peak on row3
-    expect(needsRefreshInterval(cfg)).toBe(true)
   })
 
   it('is true when any metric segment renders a timer part', () => {
@@ -30,7 +24,7 @@ describe('needsRefreshInterval', () => {
     expect(needsRefreshInterval(rowsOnly([{ id: 'r', segments: [seg], joiner: '  ' }]))).toBe(true)
   })
 
-  it('is false for a static layout (no peak, no timer parts)', () => {
+  it('is false for a static layout (no timer parts)', () => {
     const ctx: MetricSegment = {
       id: 'c',
       type: 'context',

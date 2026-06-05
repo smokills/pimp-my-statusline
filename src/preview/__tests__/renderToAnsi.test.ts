@@ -12,9 +12,9 @@ const ESC = '\x1b'
 //
 // Derived from the model semantics (mockPresets.typical + defaultPreset +
 // evaluate). Mock values: cwd ~/dev/pimp-my-statusline, branch main, Opus,
-// effort high, ctx 34%, 5h 23.5%→23, 7d 41.2%→41, _now Thu 01:05 PST (off-peak,
-// window start 05:00 ⇒ 3h55m), 5h resets +7200s ⇒ 2h0m. Threshold @<70 ⇒ green
-// ansi16(32). Canonical SGR order: bold(1) ; dim(2) ; color.
+// effort high, ctx 34%, 5h 23.5%→23, 7d 41.2%→41, 5h resets +7200s ⇒ 2h0m.
+// Threshold @<70 ⇒ green ansi16(32). Canonical SGR order: bold(1) ; dim(2) ;
+// color.
 // ---------------------------------------------------------------------------
 
 describe('renderToAnsi golden — defaultConfig × typical', () => {
@@ -34,7 +34,7 @@ describe('renderToAnsi golden — defaultConfig × typical', () => {
     expect(lines[1]).toBe(`${ESC}[2;37m${'─'.repeat(74)}${ESC}[0m`)
   })
 
-  it('row3: model effort context  session  week  peak (hand-derived)', () => {
+  it('row3: model effort context  session  week (hand-derived)', () => {
     const expected =
       `${ESC}[1;37mOpus${ESC}[0m` + // model
       ` ` + // effort joinBefore (single space)
@@ -52,11 +52,7 @@ describe('renderToAnsi golden — defaultConfig × typical', () => {
       `${ESC}[35mWeek ${ESC}[0m` + // week label (magenta 35)
       `${ESC}[32m██░░░${ESC}[0m` + // week bar (41% → 2 filled, green)
       ` ` +
-      `${ESC}[32m41%${ESC}[0m` + // week percent
-      `  ` + // joiner before peak
-      `${ESC}[1;32mOff-peak${ESC}[0m` + // peak (off-peak, bold green)
-      ` ` +
-      `${ESC}[2m(3h55m)${ESC}[0m` // peak countdown (dim, no color)
+      `${ESC}[32m41%${ESC}[0m` // week percent
     expect(lines[2]).toBe(expected)
   })
 })
@@ -75,10 +71,8 @@ describe('joinBefore join bytes on row3', () => {
     expect(row3).toContain(`high${ESC}[0m ${ESC}[32m34%`)
   })
 
-  it('major groups (context→session, session→week, week→peak) join with TWO spaces', () => {
+  it('major groups (context→session, session→week) join with TWO spaces', () => {
     expect(row3).toContain(`34%${ESC}[0m  ${ESC}[36mSession`)
-    // week bar/percent ... then two spaces before peak
-    expect(row3).toContain(`41%${ESC}[0m  ${ESC}[1;32mOff-peak`)
     // session timer ... then two spaces before week label
     expect(row3).toContain(`(2h0m)${ESC}[0m  ${ESC}[35mWeek`)
   })
@@ -91,23 +85,21 @@ describe('joinBefore join bytes on row3', () => {
 describe('absence — fresh / noRateLimits', () => {
   it('noRateLimits: session/week dropped, no dangling joiner around them', () => {
     const row3 = renderToAnsi(defaultConfig(), noRateLimits())[2]
-    // context present (28%), session+week dropped, peak present.
+    // context present (28%), session+week dropped — row ends at context.
     expect(row3).not.toContain('Session')
     expect(row3).not.toContain('Week')
-    // context → peak should join with a SINGLE double-space (no doubled joiner
-    // from the dropped session/week).
-    expect(row3).toContain(`28%${ESC}[0m  ${ESC}[1;32mOff-peak`)
+    expect(row3).toContain(`28%${ESC}[0m`)
+    expect(row3.endsWith(`28%${ESC}[0m`)).toBe(true) // no trailing joiner
     expect(row3).not.toContain(`${ESC}[0m    ${ESC}`) // no 4-space gap
   })
 
-  it('fresh: ctx null→0%, no rate_limits, off-peak; row3 has model/effort?/context/peak', () => {
+  it('fresh: ctx null→0%, no rate_limits; row3 has model/context only', () => {
     const row3 = renderToAnsi(defaultConfig(), fresh())[2]
     // fresh has no effort → effort dropped. ctx present-null → 0%.
     expect(row3).not.toContain('high')
     expect(row3).toContain(`${ESC}[32m0%${ESC}[0m`)
     expect(row3).not.toContain('Session')
     expect(row3).not.toContain('Week')
-    expect(row3).toContain('Off-peak')
     // model joins directly to context with a single space (effort dropped, and
     // context's joinBefore=' ' governs the join immediately before it).
     expect(row3).toContain(`Opus${ESC}[0m ${ESC}[32m0%`)

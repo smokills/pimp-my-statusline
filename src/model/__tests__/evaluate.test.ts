@@ -4,7 +4,6 @@ import { buildMock } from '../mock'
 import type {
   DirectorySegment,
   MetricSegment,
-  PeakSegment,
   RenderCtx,
   Segment,
   SeparatorSegment,
@@ -148,32 +147,6 @@ describe('separator width', () => {
   it('fixed width', () => {
     const seg: SeparatorSegment = { ...base, width: 74 }
     expect(text(seg, buildMock({ _columns: 200 }))).toBe('─'.repeat(74))
-  })
-})
-
-describe('peak segment', () => {
-  const base: PeakSegment = {
-    id: 'p',
-    type: 'peak',
-    enabled: true,
-    showCountdown: true,
-    tz: 'America/Los_Angeles',
-    windowDays: [1, 2, 3, 4, 5],
-    startHour: 5,
-    endHour: 11,
-  }
-  it('inside window → Peak + countdown', () => {
-    const mock = buildMock({ _now: 1769707200 }) // Thu 09:20 PST, end 11:00
-    expect(text(base, mock)).toBe('Peak (1h40m)')
-  })
-  it('off-peak → Off-peak + countdown', () => {
-    const mock = buildMock({ _now: 1769684400 }) // Thu 03:00, start 05:00 (2h)
-    expect(text(base, mock)).toBe('Off-peak (2h0m)')
-  })
-  it('no countdown when showCountdown false', () => {
-    const seg: PeakSegment = { ...base, showCountdown: false }
-    const mock = buildMock({ _now: 1769707200 })
-    expect(text(seg, mock)).toBe('Peak')
   })
 })
 

@@ -8,7 +8,6 @@ import type {
   DirectorySegment,
   LinesSegment,
   MetricSegment,
-  PeakSegment,
   PrSegment,
   Segment,
   SeparatorSegment,
@@ -20,7 +19,6 @@ import type {
 import type { Emitter, RowPlan, SegmentEmitCtx } from './types'
 import type { PlanSpan, TextPiece } from './spanplan'
 import { concreteSpan, lit, v } from './spanplan'
-import { concreteParams } from './fragments'
 import { decorate, metricValueSpans, type ValueSpan } from './segments/ir'
 import {
   metricPctPath,
@@ -284,73 +282,6 @@ function pyObjPresent(path: string[]): string {
   return `'${key}' in (${parent} or {})`
 }
 
-function emitPeak(seg: PeakSegment, ctx: SegmentEmitCtx): string[] {
-  const out = ctx.varName
-  const g = ctx.config.global.emoji
-  const u = ctx.uid
-  const p = `_${u}_pk`
-  const lines: string[] = [`# --- ${SEGMENT_COMMENT.peak} ---`]
-  lines.push('# Peak: decompose NOW under tz, then pure epoch arithmetic. DST seam +-1h accepted.')
-  lines.push(`${p}_dow, ${p}_h, ${p}_m, ${p}_s = peak_decompose(NOW, ${pyStr(seg.tz)})`)
-  lines.push(`${p}_mid = NOW - (${p}_h*3600 + ${p}_m*60 + ${p}_s)`)
-  lines.push(`${p}_today_start = ${p}_mid + ${seg.startHour}*3600`)
-  lines.push(`${p}_today_end = ${p}_mid + ${seg.endHour}*3600`)
-  lines.push(`${p}_days = {${seg.windowDays.join(', ')}}`)
-  lines.push(`${p}_in = False`)
-  lines.push(`${p}_target = 0`)
-  lines.push(`if ${p}_dow in ${p}_days and ${p}_today_start <= NOW < ${p}_today_end:`)
-  lines.push(`    ${p}_in = True`)
-  lines.push(`    ${p}_target = ${p}_today_end`)
-  lines.push('else:')
-  lines.push(`    for ${p}_k in range(0, 8):`)
-  lines.push(`        ${p}_dk = (${p}_dow - 1 + ${p}_k) % 7 + 1`)
-  lines.push(`        if ${p}_dk not in ${p}_days: continue`)
-  lines.push(`        ${p}_start = ${p}_mid + ${p}_k*86400 + ${seg.startHour}*3600`)
-  lines.push(`        if ${p}_start > NOW:`)
-  lines.push(`            ${p}_target = ${p}_start`)
-  lines.push('            break')
-  lines.push(`    if ${p}_target == 0: ${p}_target = ${p}_today_start + 7*86400`)
-
-  const peakParams = concreteParams(seg.peakStyle)
-  const offParams = concreteParams(seg.offPeakStyle)
-  lines.push(`${p}_label = 'Peak' if ${p}_in else 'Off-peak'`)
-  lines.push(
-    `${p}_lbl = (${spanLit(`${p}_label`, peakParams)}) if ${p}_in else (${spanLit(`${p}_label`, offParams)})`,
-  )
-
-  const prefix = decoratePrefix(seg, g)
-  const parts: string[] = prefix.map((ps) => pySpan(ps.span))
-  parts.push(`${p}_lbl`)
-  lines.push(`${out} = ${parts.length ? parts.join(' + ') : "''"}`)
-  if (seg.showCountdown) {
-    lines.push(`${p}_cd = time_until(${p}_target, NOW)`)
-    const sep = pySpan(concreteSpan([lit(' ')], undefined))
-    const cd = pySpan(concreteSpan([lit('('), v(`${p}_cd`), lit(')')], { dim: true }))
-    lines.push(`if ${p}_cd: ${out} += ${sep} + ${cd}`)
-  }
-  if (seg.suffix) {
-    lines.push(`${out} += ${pySpan(concreteSpan([lit(seg.suffix)], undefined))}`)
-  }
-  return lines
-}
-
-function spanLit(varName: string, params: string | null): string {
-  if (params) return `f'\\033[${params}m{${varName}}\\033[0m'`
-  return `${varName}`
-}
-
-function decoratePrefix(seg: Segment, g: boolean): ValueSpan[] {
-  const out: ValueSpan[] = []
-  if (g && seg.emoji?.show && seg.emoji.glyph) {
-    out.push({ span: concreteSpan([lit(seg.emoji.glyph + ' ')], undefined) })
-  }
-  if (seg.label?.show && seg.label.text) {
-    out.push({ span: concreteSpan([lit(seg.label.text + ' ')], seg.label.style) })
-  }
-  if (seg.prefix) out.push({ span: concreteSpan([lit(seg.prefix)], undefined) })
-  return out
-}
-
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
@@ -500,8 +431,6 @@ export const pythonEmitter: Emitter = {
       case 'session':
       case 'week':
         return emitMetric(seg as MetricSegment, ctx)
-      case 'peak':
-        return emitPeak(seg as PeakSegment, ctx)
       case 'lines':
         return emitLines(seg as LinesSegment, ctx)
       case 'pr':

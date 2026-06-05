@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// Golden snapshots + percentage edge battery + DST seam agreement.
+// Golden snapshots + percentage edge battery.
 //
 // Golden files live in tests/golden/*.ansi (trailing whitespace preserved via
 // .gitattributes/.editorconfig). They pin renderToAnsi's exact bytes so a
@@ -153,34 +153,3 @@ describe('percentage edge battery (0 / 100 / .5 ties / 1e-06 / null)', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// 3. DST seam agreement — all four implementations must AGREE byte-for-byte
-//    near a Los Angeles DST transition (the ±1h seam vs reality is accepted;
-//    divergence BETWEEN implementations is not).
-// ---------------------------------------------------------------------------
-
-describe('peak countdown across the spring-forward DST seam', () => {
-  // Verified with TZ=America/Los_Angeles date:
-  //   1772841600 = Fri 2026-03-06 16:00 PST (off-peak; next window is Monday
-  //                2026-03-09 05:00 PDT, scan crosses the Mar 8 spring-forward)
-  //   1773055800 = Mon 2026-03-09 04:30 PDT (post-transition weekday pre-window)
-  const seams: [string, number][] = [
-    ['friday-before-spring-forward', 1772841600],
-    ['monday-after-spring-forward', 1773055800],
-  ]
-  const cfg = defaultConfig()
-
-  for (const [name, epoch] of seams) {
-    it(name, () => {
-      const mock = typical()
-      mock._now = epoch
-      if (mock.rate_limits?.five_hour) mock.rate_limits.five_hour.resets_at = epoch + 7200
-      if (mock.rate_limits?.seven_day) mock.rate_limits.seven_day.resets_at = epoch + 86400
-      const expected = renderToAnsi(cfg, mock).join('\n') + '\n'
-      expect(expected).toContain('Off-peak')
-      for (const lang of LANGUAGES) {
-        expect(runScript(lang, cfg, mock), lang).toBe(expected)
-      }
-    })
-  }
-})

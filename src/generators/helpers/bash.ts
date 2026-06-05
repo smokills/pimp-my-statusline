@@ -100,21 +100,6 @@ const HELPER_TEMPLATES: Partial<Record<HelperId, () => string[]>> = {
   ],
   truncCols: () => [], // separator width clamp uses ${COLUMNS:-80} at the call site.
   gitBranch: () => [], // handled inline (env override) — no standalone helper.
-  peak: () => [
-    '# peak_decompose <epoch> <tz>: echo "DOW HOUR MIN SEC" (ISO dow 1..7) for the',
-    '# wall-clock of <epoch> in <tz>. Uses GNU `date -d @epoch` with a BSD `date -r',
-    '# epoch` fallback (covers Linux + macOS). We only ever feed date an @epoch,',
-    '# never a free-form date string (that would be GNU-only and break macOS).',
-    'peak_decompose() {',
-    '  local epoch="$1" tz="$2" dow h m s',
-    '  dow=$(TZ="$tz" date -d "@$epoch" +%u 2>/dev/null || TZ="$tz" date -r "$epoch" +%u 2>/dev/null)',
-    '  h=$(TZ="$tz" date -d "@$epoch" +%H 2>/dev/null || TZ="$tz" date -r "$epoch" +%H 2>/dev/null)',
-    '  m=$(TZ="$tz" date -d "@$epoch" +%M 2>/dev/null || TZ="$tz" date -r "$epoch" +%M 2>/dev/null)',
-    '  s=$(TZ="$tz" date -d "@$epoch" +%S 2>/dev/null || TZ="$tz" date -r "$epoch" +%S 2>/dev/null)',
-    '  # Strip leading zeros for safe arithmetic (10# forces base-10).',
-    '  printf \'%s %s %s %s\' "$((10#$dow))" "$((10#$h))" "$((10#$m))" "$((10#$s))"',
-    '}',
-  ],
 }
 
 export function bashHelper(id: HelperId, _config: StatuslineConfig): string[] {

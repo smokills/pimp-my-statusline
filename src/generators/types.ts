@@ -52,7 +52,7 @@ export interface Emitter {
   baseHelpers(needsThreshold: boolean): string[]
   /** Emit one threshold `color`/`colorN` function. */
   colorFn(fn: ColorFn): string[]
-  /** Emit a single helper by id (bar, time_until, peak, fmt_cost, ...). */
+  /** Emit a single helper by id (bar, time_until, fmt_cost, ...). */
   helper(id: HelperId, config: StatuslineConfig): string[]
   /** Pet runtime: mood-selection + frame tables + composition helpers. The
    *  frame literals are colorized at generate time (parity by construction). */

@@ -75,18 +75,6 @@ const directorySegment = z.object({
   style: textStyle.optional(),
 })
 
-const peakSegment = z.object({
-  ...base,
-  type: z.literal('peak'),
-  showCountdown: z.boolean(),
-  tz: z.string(),
-  windowDays: z.array(z.number()),
-  startHour: z.number(),
-  endHour: z.number(),
-  peakStyle: textStyle.optional(),
-  offPeakStyle: textStyle.optional(),
-})
-
 const linesSegment = z.object({
   ...base,
   type: z.literal('lines'),
@@ -139,7 +127,6 @@ const simpleSegment = z.object({
 const segment = z.union([
   metricSegment,
   directorySegment,
-  peakSegment,
   linesSegment,
   prSegment,
   separatorSegment,

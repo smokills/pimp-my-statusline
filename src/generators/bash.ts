@@ -13,8 +13,7 @@
 //  - ALL ANSI via real ESC bytes ($'\033[...m'); output via printf '%s\n' —
 //    NEVER echo -e / printf '%b' (those reinterpret backslashes in runtime
 //    data like branch names; with real ESC bytes %s is byte-exact and safe)
-//  - NEVER date -d "<string>"; clock from PMSL_NOW; wall-clock via date -d @ /
-//    -r fallback; peak is pure epoch arithmetic
+//  - NEVER date -d "<string>"; clock from PMSL_NOW
 //  - percent via jq floor (never cut -d.), then clamp
 //  - bar guards the zero-count printf
 //  - cost via LC_NUMERIC=C printf '%.2f'
@@ -24,7 +23,6 @@ import type { HelperId } from '../model/segments'
 import type {
   LinesSegment,
   MetricSegment,
-  PeakSegment,
   Segment,
   SeparatorSegment,
   SimpleSegment,
@@ -37,7 +35,6 @@ import type {
 import type { Emitter, RowPlan, SegmentEmitCtx } from './types'
 import type { PlanSpan, TextPiece } from './spanplan'
 import { concreteSpan, lit, v } from './spanplan'
-import { concreteParams } from './fragments'
 import { decorate, metricValueSpans, type ValueSpan } from './segments/ir'
 import {
   metricPctPath,
@@ -262,7 +259,7 @@ function bashSpan(span: PlanSpan): string {
 }
 
 /** Serialize value spans into the RHS of an assignment, honoring runtime-
- *  conditional spans (the metric/peak timer / pr state). */
+ *  conditional spans (the metric timer / pr state). */
 function assignSpans(outVar: string, spans: ValueSpan[]): string[] {
   const lines: string[] = []
   const staticParts: string[] = []
@@ -427,79 +424,6 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   return lines
 }
 
-function emitPeak(seg: PeakSegment, ctx: SegmentEmitCtx): string[] {
-  const lines: string[] = []
-  const out = ctx.varName
-  const u = ctx.uid
-  const p = `_${u}` // prefix for peak temps
-  lines.push(`# --- ${SEGMENT_COMMENT.peak} ---`)
-  lines.push('# Peak window: decompose NOW under TZ, then PURE epoch arithmetic')
-  lines.push('# (ptMidnight = NOW - (h*3600+m*60+s)). DST seam +-1h accepted.')
-  const days = seg.windowDays.join(' ')
-  lines.push(`read -r ${p}_dow ${p}_h ${p}_m ${p}_s < <(peak_decompose "$NOW" '${sq(seg.tz)}')`)
-  lines.push(`${p}_mid=$(( NOW - (${p}_h*3600 + ${p}_m*60 + ${p}_s) ))`)
-  lines.push(`${p}_today_start=$(( ${p}_mid + ${seg.startHour}*3600 ))`)
-  lines.push(`${p}_today_end=$(( ${p}_mid + ${seg.endHour}*3600 ))`)
-  lines.push(`${p}_in=0; ${p}_target=0`)
-  lines.push(`${p}_days=" ${days} "`)
-  lines.push(
-    `if [[ "$${p}_days" == *" $${p}_dow "* ]] && [ "$NOW" -ge "$${p}_today_start" ] && [ "$NOW" -lt "$${p}_today_end" ]; then`,
-  )
-  lines.push(`  ${p}_in=1; ${p}_target=$${p}_today_end`)
-  lines.push('else')
-  lines.push(`  for ${p}_k in 0 1 2 3 4 5 6 7; do`)
-  lines.push(`    ${p}_dk=$(( (${p}_dow - 1 + ${p}_k) % 7 + 1 ))`)
-  lines.push(`    [[ "$${p}_days" == *" $${p}_dk "* ]] || continue`)
-  lines.push(`    ${p}_start=$(( ${p}_mid + ${p}_k*86400 + ${seg.startHour}*3600 ))`)
-  lines.push(`    if [ "$${p}_start" -gt "$NOW" ]; then ${p}_target=$${p}_start; break; fi`)
-  lines.push('  done')
-  lines.push(`  [ "$${p}_target" -eq 0 ] && ${p}_target=$(( ${p}_today_start + 7*86400 ))`)
-  lines.push('fi')
-
-  lines.push(`if [ "$${p}_in" -eq 1 ]; then ${p}_label=Peak; else ${p}_label=Off-peak; fi`)
-  const peakStyleParams = concreteParams(seg.peakStyle)
-  const offStyleParams = concreteParams(seg.offPeakStyle)
-  lines.push(
-    `if [ "$${p}_in" -eq 1 ]; then ${p}_lbl=${spanLiteral(`${p}_label`, peakStyleParams)}; else ${p}_lbl=${spanLiteral(`${p}_label`, offStyleParams)}; fi`,
-  )
-
-  const prefix = decoratePrefixSpans(seg, ctx.config.global.emoji)
-  const parts: string[] = prefix.map((ps) => bashSpan(ps.span))
-  parts.push(`"$${p}_lbl"`)
-  lines.push(`${out}=${parts.length ? parts.join('') : `''`}`)
-
-  if (seg.showCountdown) {
-    lines.push(`${p}_cd=$(time_until "$${p}_target" "$NOW")`)
-    const sep = bashSpan(concreteSpan([lit(' ')], undefined))
-    const cd = bashSpan(concreteSpan([lit('('), v(`${p}_cd`), lit(')')], { dim: true }))
-    lines.push(`[ -n "$${p}_cd" ] && ${out}+=${sep}${cd}`)
-  }
-  if (seg.suffix) {
-    lines.push(`${out}+=${bashSpan(concreteSpan([lit(seg.suffix)], undefined))}`)
-  }
-  return lines
-}
-
-/** A span literal: $'\033[params m'"${var}"$'\033[0m' or plain "${var}". */
-function spanLiteral(varName: string, params: string | null): string {
-  if (params) return `${esc(params)}"$${varName}"${esc('0')}`
-  return `"$${varName}"`
-}
-
-/** Emoji + label + prefix decorate spans (NO value, NO suffix) for segments
- *  whose value we build manually (peak). */
-function decoratePrefixSpans(seg: Segment, g: boolean): ValueSpan[] {
-  const out: ValueSpan[] = []
-  if (g && seg.emoji?.show && seg.emoji.glyph) {
-    out.push({ span: concreteSpan([lit(seg.emoji.glyph + ' ')], undefined) })
-  }
-  if (seg.label?.show && seg.label.text) {
-    out.push({ span: concreteSpan([lit(seg.label.text + ' ')], seg.label.style) })
-  }
-  if (seg.prefix) out.push({ span: concreteSpan([lit(seg.prefix)], undefined) })
-  return out
-}
-
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = []
   const out = ctx.varName
@@ -650,8 +574,6 @@ export const bashEmitter: Emitter = {
       case 'session':
       case 'week':
         return emitMetric(seg as MetricSegment, ctx)
-      case 'peak':
-        return emitPeak(seg as PeakSegment, ctx)
       case 'lines':
         return emitLines(seg as LinesSegment, ctx)
       case 'pr':

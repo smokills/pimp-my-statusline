@@ -128,11 +128,10 @@ describe('helper pruning (directory + model only)', () => {
     }
   }
   for (const lang of LANGUAGES) {
-    it(`${lang} emits no bar/time_until/peak/pet code`, () => {
+    it(`${lang} emits no bar/time_until/pet code`, () => {
       const s = generate({ ...minimalConfig(), language: lang }, lang)
       expect(s).not.toMatch(/\bbar\b\s*[({=]|def bar|const bar/)
       expect(s).not.toMatch(/time_until/)
-      expect(s).not.toMatch(/peak_decompose/)
       expect(s).not.toMatch(/PET_FRAMES|PET_calm|_pet_mood|_petMood/)
       expect(s).not.toMatch(/sgr_wrap/) // no threshold colors here
     })
@@ -157,8 +156,6 @@ describe('cross-language execution parity', () => {
     'fresh',
     'noRateLimits',
     'panic',
-    'peakNow',
-    'offPeak',
     'narrow',
   ] as const
 

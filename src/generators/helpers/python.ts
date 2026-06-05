@@ -1,6 +1,6 @@
 // Python helper templates (stdlib only). f-strings with \033 escapes; cost via
 // '%.2f' % x (CPython rounds half-even on the double — matches printf). Percent
-// via int(float(x or 0)) then clamp. Peak via zoneinfo (3.9+).
+// via int(float(x or 0)) then clamp.
 
 import type { HelperId } from '../../model/segments'
 import type { StatuslineConfig } from '../../model/types'
@@ -62,18 +62,6 @@ const HELPER_TEMPLATES: Partial<Record<HelperId, () => string[]>> = {
   ],
   truncCols: () => [], // separator width clamp uses COLUMNS at the call site.
   gitBranch: () => [], // env override handled inline.
-  peak: () => [
-    'def peak_decompose(epoch, tz):',
-    '    # wall-clock (ISO dow 1..7, h, m, s) of epoch in tz via zoneinfo (3.9+;',
-    "    # on minimal distros: pip install tzdata).",
-    '    from datetime import datetime, timezone',
-    '    try:',
-    '        from zoneinfo import ZoneInfo',
-    '        dt = datetime.fromtimestamp(epoch, ZoneInfo(tz))',
-    '    except Exception:',
-    '        dt = datetime.fromtimestamp(epoch, timezone.utc)',
-    '    return dt.isoweekday(), dt.hour, dt.minute, dt.second',
-  ],
 }
 
 export function pyHelper(id: HelperId, _config: StatuslineConfig): string[] {

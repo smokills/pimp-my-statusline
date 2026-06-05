@@ -12,7 +12,6 @@ export const SEGMENT_COMMENT: Record<SegmentType, string> = {
   context: 'Context',
   session: 'Session (5h)',
   week: 'Week (7d)',
-  peak: 'Peak window',
   cost: 'Cost',
   duration: 'Duration',
   lines: 'Lines changed',

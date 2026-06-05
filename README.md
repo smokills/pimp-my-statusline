@@ -9,7 +9,7 @@ Build your [Claude Code statusline](https://code.claude.com/docs/en/statusline) 
 ## Features
 
 - **Live terminal preview** — wrapped in a macOS / Windows / Linux window chrome, the preview renders your statusline exactly as your terminal will, fed by a scrubbable mock session (drag the context % slider, watch everything react)
-- **Element library** — directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars + reset countdowns, peak-hours indicator, cost, duration, lines ±, vim mode, PR info, and more
+- **Element library** — directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars + reset countdowns, cost, duration, lines ±, vim mode, PR info, and more
 - **Multi-row layout** — arrange elements across any number of rows with drag & drop (keyboard accessible)
 - **Per-element styling** — fixed xterm-256 colors, basic ANSI-16 colors, or threshold mode (green → yellow → red as a percentage climbs, with editable breakpoints)
 - **Display variants** — gauge bar, percentage, and countdown timer per metric, with configurable bar width and glyphs
@@ -20,7 +20,7 @@ Build your [Claude Code statusline](https://code.claude.com/docs/en/statusline) 
 
 ## Parity, guaranteed
 
-The preview is not an approximation. The same declarative config drives both the in-browser renderer and the three code generators, and CI executes every generated script (bash, python3, node) against mock session JSON with a frozen clock, asserting the output is **byte-identical** to the preview — across a matrix of configs, edge percentages (0%, 100%, ties, `1e-06`), DST transitions, and pet moods.
+The preview is not an approximation. The same declarative config drives both the in-browser renderer and the three code generators, and CI executes every generated script (bash, python3, node) against mock session JSON with a frozen clock, asserting the output is **byte-identical** to the preview — across a matrix of configs, edge percentages (0%, 100%, ties, `1e-06`), and pet moods.
 
 ## Install an exported script
 
@@ -39,7 +39,7 @@ The preview is not an approximation. The same declarative config drives both the
 }
 ```
 
-The export panel adds `"refreshInterval": 10` automatically when your statusline shows time-based data (countdowns, peak window).
+The export panel adds `"refreshInterval": 10` automatically when your statusline shows time-based data (reset countdowns).
 
 ## Development
 

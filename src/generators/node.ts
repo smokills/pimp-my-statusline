@@ -1,6 +1,6 @@
 // Node emitter. #!/usr/bin/env node; accumulate stdin then JSON.parse. Percent
-// Math.trunc(Number(x)||0) + clamp; cost replicates the model fmtCost; peak via
-// Intl.DateTimeFormat; PMSL_GIT_BRANCH via ('PMSL_GIT_BRANCH' in process.env).
+// Math.trunc(Number(x)||0) + clamp; cost replicates the model fmtCost;
+// PMSL_GIT_BRANCH via ('PMSL_GIT_BRANCH' in process.env).
 // Strings use \x1b, double-quoted (no template literals / backticks in styled
 // output). The whole body runs inside the stdin 'end' handler.
 
@@ -9,7 +9,6 @@ import type {
   DirectorySegment,
   LinesSegment,
   MetricSegment,
-  PeakSegment,
   PrSegment,
   Segment,
   SeparatorSegment,
@@ -21,7 +20,6 @@ import type {
 import type { Emitter, RowPlan, SegmentEmitCtx } from './types'
 import type { PlanSpan, TextPiece } from './spanplan'
 import { concreteSpan, lit, v } from './spanplan'
-import { concreteParams } from './fragments'
 import { decorate, metricValueSpans, type ValueSpan } from './segments/ir'
 import {
   metricPctPath,
@@ -274,77 +272,6 @@ function nodeObjPresent(path: string[]): string {
   return `${nodeAccess(path)} !== undefined`
 }
 
-function emitPeak(seg: PeakSegment, ctx: SegmentEmitCtx): string[] {
-  const out = ctx.varName
-  const g = ctx.config.global.emoji
-  const u = ctx.uid
-  // Capitalized, uid-scoped peak temp names.
-  const P = `_${u}Pk`
-  const dow = `${P}Dow`, h = `${P}H`, mn = `${P}M`, sc = `${P}S`
-  const mid = `${P}Mid`, ts = `${P}TodayStart`, te = `${P}TodayEnd`
-  const days = `${P}Days`, inV = `${P}In`, target = `${P}Target`
-  const k = `${P}K`, dk = `${P}Dk`, start = `${P}Start`
-  const label = `${P}Label`, lbl = `${P}Lbl`, cd = `${P}Cd`
-  const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.peak} ---`]
-  lines.push(`${I}// Peak: decompose NOW under tz, then pure epoch arithmetic. DST seam +-1h accepted.`)
-  lines.push(`${I}const [${dow}, ${h}, ${mn}, ${sc}] = peak_decompose(NOW, ${jsStr(seg.tz)});`)
-  lines.push(`${I}const ${mid} = NOW - (${h} * 3600 + ${mn} * 60 + ${sc});`)
-  lines.push(`${I}const ${ts} = ${mid} + ${seg.startHour} * 3600;`)
-  lines.push(`${I}const ${te} = ${mid} + ${seg.endHour} * 3600;`)
-  lines.push(`${I}const ${days} = new Set([${seg.windowDays.join(', ')}]);`)
-  lines.push(`${I}let ${inV} = false, ${target} = 0;`)
-  lines.push(`${I}if (${days}.has(${dow}) && NOW >= ${ts} && NOW < ${te}) {`)
-  lines.push(`${I}  ${inV} = true; ${target} = ${te};`)
-  lines.push(`${I}} else {`)
-  lines.push(`${I}  for (let ${k} = 0; ${k} <= 7; ${k}++) {`)
-  lines.push(`${I}    const ${dk} = ((${dow} - 1 + ${k}) % 7) + 1;`)
-  lines.push(`${I}    if (!${days}.has(${dk})) continue;`)
-  lines.push(`${I}    const ${start} = ${mid} + ${k} * 86400 + ${seg.startHour} * 3600;`)
-  lines.push(`${I}    if (${start} > NOW) { ${target} = ${start}; break; }`)
-  lines.push(`${I}  }`)
-  lines.push(`${I}  if (${target} === 0) ${target} = ${ts} + 7 * 86400;`)
-  lines.push(`${I}}`)
-
-  const peakParams = concreteParams(seg.peakStyle)
-  const offParams = concreteParams(seg.offPeakStyle)
-  lines.push(`${I}const ${label} = ${inV} ? "Peak" : "Off-peak";`)
-  lines.push(
-    `${I}const ${lbl} = ${inV} ? (${spanLit(label, peakParams)}) : (${spanLit(label, offParams)});`,
-  )
-
-  const prefix = decoratePrefix(seg, g)
-  const parts = prefix.map((ps) => nodeSpan(ps.span))
-  parts.push(lbl)
-  lines.push(`${I}let ${out} = ${parts.length ? parts.join(' + ') : '""'};`)
-  if (seg.showCountdown) {
-    lines.push(`${I}const ${cd} = time_until(${target}, NOW);`)
-    const sep = nodeSpan(concreteSpan([lit(' ')], undefined))
-    const cdSpan = nodeSpan(concreteSpan([lit('('), v(cd), lit(')')], { dim: true }))
-    lines.push(`${I}if (${cd}) ${out} += ${sep} + ${cdSpan};`)
-  }
-  if (seg.suffix) {
-    lines.push(`${I}${out} += ${nodeSpan(concreteSpan([lit(seg.suffix)], undefined))};`)
-  }
-  return lines
-}
-
-function spanLit(varName: string, params: string | null): string {
-  if (params) return `"\\x1b[${params}m" + ${varName} + "\\x1b[0m"`
-  return varName
-}
-
-function decoratePrefix(seg: Segment, g: boolean): ValueSpan[] {
-  const out: ValueSpan[] = []
-  if (g && seg.emoji?.show && seg.emoji.glyph) {
-    out.push({ span: concreteSpan([lit(seg.emoji.glyph + ' ')], undefined) })
-  }
-  if (seg.label?.show && seg.label.text) {
-    out.push({ span: concreteSpan([lit(seg.label.text + ' ')], seg.label.style) })
-  }
-  if (seg.prefix) out.push({ span: concreteSpan([lit(seg.prefix)], undefined) })
-  return out
-}
-
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const g = ctx.config.global.emoji
@@ -490,8 +417,6 @@ export const nodeEmitter: Emitter = {
       case 'session':
       case 'week':
         return emitMetric(seg as MetricSegment, ctx)
-      case 'peak':
-        return emitPeak(seg as PeakSegment, ctx)
       case 'lines':
         return emitLines(seg as LinesSegment, ctx)
       case 'pr':

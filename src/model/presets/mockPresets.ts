@@ -1,6 +1,6 @@
 // Mock presets — deterministic fixtures exercising every render path. Time is
-// always pinned via `_now` (epoch SECONDS) so countdowns and peak logic are
-// reproducible. Epoch constants were verified on the dev box with GNU date,
+// always pinned via `_now` (epoch SECONDS) so countdowns are reproducible.
+// Epoch constants were verified on the dev box with GNU date,
 // e.g. `TZ=America/Los_Angeles date -d @<epoch> '+%u %a %Y-%m-%d %H:%M:%S %Z'`.
 // (This is test-fixture work — using GNU `date -d` here is fine; it is NOT
 // emitted into any generated script.)
@@ -11,12 +11,8 @@ import { buildMock, type MockData } from '../mock'
 // Verified epoch constants (America/Los_Angeles wall-clock in comments)
 // ---------------------------------------------------------------------------
 
-// Thu 2026-01-29 01:05:00 PST — before the 05:00 peak window, so off-peak.
+// Thu 2026-01-29 01:05:00 PST.
 export const TYPICAL_NOW = 1769677500
-// Thu 2026-01-29 09:20:00 PST — inside the Mon-Fri 05:00–11:00 window.
-export const PEAK_NOW = 1769707200
-// Sat 2026-01-31 14:00:00 PST — weekend afternoon, off-peak.
-export const OFFPEAK_NOW = 1769896800
 
 // ---------------------------------------------------------------------------
 // Presets
@@ -134,49 +130,6 @@ export function panic(): MockData {
   })
 }
 
-/** peakNow — _now inside the Mon-Fri 05:00–11:00 PT window. */
-export function peakNow(): MockData {
-  return buildMock({
-    _now: PEAK_NOW, // Thu 2026-01-29 09:20:00 PST
-    _gitBranch: 'main',
-    model: { id: 'claude-opus-4', display_name: 'Opus' },
-    effort: { level: 'high' },
-    context_window: {
-      total_input_tokens: 50000,
-      total_output_tokens: 3000,
-      context_window_size: 200000,
-      used_percentage: 40,
-      remaining_percentage: 60,
-      current_usage: null,
-    },
-    rate_limits: {
-      five_hour: { used_percentage: 50, resets_at: PEAK_NOW + 3600 },
-      seven_day: { used_percentage: 55, resets_at: PEAK_NOW + 4 * 86400 },
-    },
-  })
-}
-
-/** offPeak — _now on a Saturday afternoon PT. */
-export function offPeak(): MockData {
-  return buildMock({
-    _now: OFFPEAK_NOW, // Sat 2026-01-31 14:00:00 PST
-    _gitBranch: 'main',
-    model: { id: 'claude-opus-4', display_name: 'Opus' },
-    context_window: {
-      total_input_tokens: 30000,
-      total_output_tokens: 1500,
-      context_window_size: 200000,
-      used_percentage: 22,
-      remaining_percentage: 78,
-      current_usage: null,
-    },
-    rate_limits: {
-      five_hour: { used_percentage: 15, resets_at: OFFPEAK_NOW + 3600 },
-      seven_day: { used_percentage: 30, resets_at: OFFPEAK_NOW + 86400 },
-    },
-  })
-}
-
 /** narrow — _columns 40, for truncation + 'full'-width separator clamping. */
 export function narrow(): MockData {
   return buildMock({
@@ -205,8 +158,6 @@ export const MOCK_PRESETS = {
   fresh,
   noRateLimits,
   panic,
-  peakNow,
-  offPeak,
   narrow,
 } as const
 

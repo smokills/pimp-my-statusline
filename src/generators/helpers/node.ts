@@ -1,7 +1,7 @@
 // Node helper templates (no deps). Strings use \x1b, double-quoted (no template
 // literals in styled output). Math.trunc(Number(x)||0) + clamp; cost REPLICATES
 // the model's fmtCost (toFixed(30)+BigInt ties-to-even) — toFixed alone is NOT
-// acceptable. Peak via Intl.DateTimeFormat (ported verbatim from peakState).
+// acceptable.
 
 import type { HelperId } from '../../model/segments'
 import type { StatuslineConfig } from '../../model/types'
@@ -90,27 +90,6 @@ const HELPER_TEMPLATES: Partial<Record<HelperId, () => string[]>> = {
   ],
   truncCols: () => [], // separator width clamp uses COLUMNS at the call site.
   gitBranch: () => [], // env override handled inline.
-  peak: () => [
-    '// peak_decompose: wall-clock (ISO dow 1..7, h, m, s) of epoch in tz via',
-    '// Intl.DateTimeFormat (ported verbatim from peakState/ptDecompose).',
-    'const peak_decompose = (epoch, tz) => {',
-    '  const fmt = new Intl.DateTimeFormat("en-US", {',
-    '    timeZone: tz, weekday: "short", hour: "2-digit", minute: "2-digit",',
-    '    second: "2-digit", hour12: false,',
-    '  });',
-    '  const parts = fmt.formatToParts(new Date(epoch * 1000));',
-    '  let weekday = "", h = 0, m = 0, s = 0;',
-    '  for (const p of parts) {',
-    '    if (p.type === "weekday") weekday = p.value;',
-    '    else if (p.type === "hour") h = Number(p.value);',
-    '    else if (p.type === "minute") m = Number(p.value);',
-    '    else if (p.type === "second") s = Number(p.value);',
-    '  }',
-    '  if (h === 24) h = 0;',
-    '  const dowMap = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };',
-    '  return [dowMap[weekday] || 1, h, m, s];',
-    '};',
-  ],
 }
 
 export function nodeHelper(id: HelperId, _config: StatuslineConfig): string[] {

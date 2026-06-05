@@ -3,7 +3,7 @@
 import type { JSX } from 'react'
 
 const STATS: { num: string; lbl: string }[] = [
-  { num: '21', lbl: 'statusline elements' },
+  { num: '20', lbl: 'statusline elements' },
   { num: '6', lbl: 'reactive ASCII pets' },
   { num: '3', lbl: 'export languages' },
   { num: '1:1', lbl: 'byte-identical preview ↔ script' },

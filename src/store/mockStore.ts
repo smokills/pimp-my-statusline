@@ -15,8 +15,8 @@ import { MOCK_PRESETS, type MockPresetName, typical } from '../model/presets/moc
 // ---------------------------------------------------------------------------
 // Time helpers — translate a day-of-week + time-of-day into `_now`.
 // Kept simple: we anchor on UTC midnight of a known Monday and add the picked
-// dow/hour/minute. The peak logic itself reads `_now` through the model's
-// peakState (America/Los_Angeles), so this control just shifts the epoch.
+// dow/hour/minute. Countdowns (reset timers) read `_now`, so this control just
+// shifts the epoch.
 // ---------------------------------------------------------------------------
 
 // 2026-01-26 is a Monday (UTC). Anchor for the clock control.

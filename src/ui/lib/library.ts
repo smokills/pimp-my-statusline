@@ -17,7 +17,6 @@ const CATEGORY_OF: Record<SegmentType, Category> = {
 
   session: 'SESSION',
   week: 'SESSION',
-  peak: 'SESSION',
   cost: 'SESSION',
   duration: 'SESSION',
 
@@ -125,8 +124,6 @@ export function primaryStyle(seg: Segment): TextStyle | undefined {
       return seg.valueStyle ?? seg.barStyle
     case 'directory':
       return seg.style
-    case 'peak':
-      return seg.peakStyle ?? seg.offPeakStyle
     case 'lines':
       return seg.addedStyle ?? seg.removedStyle
     case 'separator':
@@ -153,8 +150,6 @@ export function variantGlyphs(seg: Segment): string {
       return seg.fill
     case 'lines':
       return seg.linesStyle === 'addedOnly' ? '+' : seg.linesStyle === 'removedOnly' ? '−' : '±'
-    case 'peak':
-      return seg.showCountdown ? '⏱' : '◷'
     default:
       return ''
   }

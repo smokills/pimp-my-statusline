@@ -13,7 +13,6 @@ import type {
   DirectorySegment,
   LinesSegment,
   MetricSegment,
-  PeakSegment,
   PrSegment,
   Segment,
   SegmentType,
@@ -30,7 +29,6 @@ import {
   barString,
   fmtCost,
   fmtDuration,
-  peakState,
   resolveThreshold,
   timeUntil,
   truncPct,
@@ -40,7 +38,6 @@ export type HelperId =
   | 'colorPct'
   | 'bar'
   | 'timeUntil'
-  | 'peak'
   | 'petFrame'
   | 'pad'
   | 'truncCols'
@@ -275,32 +272,6 @@ function evaluateSimple(
   return decorate(seg, ctx, [span(value, seg.style)])
 }
 
-function evaluatePeak(
-  seg: PeakSegment,
-  mock: MockData,
-  ctx: RenderCtx,
-): SegmentRender {
-  const { inPeak, target } = peakState(
-    mock._now,
-    seg.tz,
-    seg.windowDays,
-    seg.startHour,
-    seg.endHour,
-  )
-  const value: SegmentRender['spans'] = []
-  value.push(
-    span(inPeak ? 'Peak' : 'Off-peak', inPeak ? seg.peakStyle : seg.offPeakStyle),
-  )
-  if (seg.showCountdown) {
-    const t = timeUntil(target, mock._now)
-    if (t !== '') {
-      value.push(span(' '))
-      value.push(span(`(${t})`, { dim: true }))
-    }
-  }
-  return decorate(seg, ctx, value)
-}
-
 function evaluateLines(
   seg: LinesSegment,
   mock: MockData,
@@ -387,18 +358,6 @@ function metricDefaults(
 
 function directoryDefaults(): Omit<DirectorySegment, 'id'> {
   return { type: 'directory', enabled: true, dirStyle: 'tildeHome' }
-}
-
-function peakDefaults(): Omit<PeakSegment, 'id'> {
-  return {
-    type: 'peak',
-    enabled: true,
-    showCountdown: true,
-    tz: 'America/Los_Angeles',
-    windowDays: [1, 2, 3, 4, 5],
-    startHour: 5,
-    endHour: 11,
-  }
 }
 
 function linesDefaults(): Omit<LinesSegment, 'id'> {
@@ -492,15 +451,6 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     defaults: () => metricDefaults('week', 'Week', ['bar', 'percent']),
     helpers: ['colorPct', 'bar', 'timeUntil'],
     evaluate: (seg, mock, ctx) => evaluateMetric(seg as MetricSegment, mock, ctx),
-  },
-  peak: {
-    type: 'peak',
-    label: 'Peak window',
-    sources: [],
-    metric: false,
-    defaults: peakDefaults,
-    helpers: ['peak', 'timeUntil'],
-    evaluate: (seg, mock, ctx) => evaluatePeak(seg as PeakSegment, mock, ctx),
   },
   cost: {
     type: 'cost',

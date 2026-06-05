@@ -23,7 +23,6 @@ export type SegmentType =
   | 'context'
   | 'session'
   | 'week'
-  | 'peak'
   | 'cost'
   | 'duration'
   | 'lines'
@@ -122,17 +121,6 @@ export interface DirectorySegment extends SegmentBase {
   style?: TextStyle
 }
 
-export interface PeakSegment extends SegmentBase {
-  type: 'peak'
-  showCountdown: boolean
-  tz: string // 'America/Los_Angeles'
-  windowDays: number[] // ISO dow, [1,2,3,4,5] = Mon–Fri
-  startHour: number // 5
-  endHour: number // 11
-  peakStyle?: TextStyle // bold red
-  offPeakStyle?: TextStyle // bold green
-}
-
 export interface LinesSegment extends SegmentBase {
   type: 'lines'
   linesStyle: LinesStyle
@@ -181,7 +169,6 @@ export interface SimpleSegment extends SegmentBase {
 export type Segment =
   | MetricSegment
   | DirectorySegment
-  | PeakSegment
   | LinesSegment
   | PrSegment
   | SeparatorSegment
