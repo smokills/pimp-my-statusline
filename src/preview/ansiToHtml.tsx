@@ -77,10 +77,16 @@ function applyParams(state: State, params: number[]): void {
       const n = params[i + 2]
       if (n !== undefined) state.fg = { kind: 'xterm', idx: n }
       i += 2
+    } else if (p === 38 && params[i + 1] === 2) {
+      // 38;2;r;g;b — 24-bit truecolor. We do not render truecolor, but we MUST
+      // consume its 4 trailing params (the `2` plus r,g,b); otherwise they leak
+      // back into this loop and corrupt state (e.g. the `2` read as DIM).
+      i += 4
     } else if (p === 39) {
       state.fg = { kind: 'none' } // default foreground
     }
-    // Unknown params (e.g. background colors, 38;2;r;g;b truecolor) ignored.
+    // Unknown params (e.g. background colors 40-49) are ignored. Truecolor
+    // (38;2;…) is consumed above without effect.
   }
 }
 

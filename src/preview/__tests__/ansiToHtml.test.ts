@@ -63,11 +63,20 @@ describe('ansiLineToSpans', () => {
     expect(spans).toEqual([{ text: 'Q' }])
   })
 
-  it('truecolor 38;2;r;g;b ignored gracefully (params consumed-less, no crash)', () => {
+  it('truecolor 38;2;r;g;b is consumed fully — no color, no DIM leak', () => {
     const spans = ansiLineToSpans(`${ESC}[38;2;10;20;30mT${ESC}[0m`)
-    // We do not handle 38;2; — `38` alone with next param `2` (not `5`) falls
-    // through; the run still emits its text.
-    expect(spans.map((s) => s.text).join('')).toBe('T')
+    // The whole `38;2;r;g;b` group is consumed. Critically the trailing `2`
+    // must NOT be read as DIM and r/g/b must NOT be read as further SGR codes.
+    expect(spans).toEqual([{ text: 'T' }])
+  })
+
+  it('truecolor following a real color leaves the prior color intact (no corruption)', () => {
+    // 31 (red) then a truecolor group then text: truecolor is ignored, so the
+    // span keeps red — proving the group was consumed and did not clobber state
+    // beyond the (intentionally unrendered) foreground reset implied by 38.
+    const spans = ansiLineToSpans(`${ESC}[1;38;2;10;20;30mT${ESC}[0m`)
+    // bold survives (set before the truecolor group); no color; no dim.
+    expect(spans).toEqual([{ text: 'T', bold: true }])
   })
 
   it('39 resets to default foreground', () => {
@@ -78,6 +87,19 @@ describe('ansiLineToSpans', () => {
   it('bare ESC[m is treated as reset', () => {
     const spans = ansiLineToSpans(`${ESC}[34mA${ESC}[mB`)
     expect(spans).toEqual([{ text: 'A', color: XTERM256[4] }, { text: 'B' }])
+  })
+
+  it('unterminated escape (no trailing m) passes through as literal bytes', () => {
+    // SGR_RE requires the closing `m`; an unterminated `\x1b[1;34` is NOT a
+    // complete SGR, so it is left untouched in the text. Pinned so a future
+    // regex tweak cannot silently start swallowing partial sequences.
+    const spans = ansiLineToSpans(`${ESC}[1;34`)
+    expect(spans).toEqual([{ text: `${ESC}[1;34` }])
+  })
+
+  it('unterminated escape mid-line does not consume following text', () => {
+    const spans = ansiLineToSpans(`A${ESC}[1;34B`)
+    expect(spans).toEqual([{ text: `A${ESC}[1;34B` }])
   })
 
   it('OSC8 hyperlink sequences are stripped, text preserved', () => {
