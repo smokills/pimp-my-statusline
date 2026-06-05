@@ -54,12 +54,60 @@ export function fmtDuration(ms: number): string {
   return `${s}s`
 }
 
-/** Format a USD cost: `$` + 2-decimal fixed. */
+/**
+ * Format a USD cost: `$` + 2 decimals, with C-`printf '%.2f'` rounding.
+ *
+ * CANONICAL RULE — ALL targets MUST produce C-printf `%.2f` semantics:
+ *   - bash:   `LC_NUMERIC=C printf '%.2f' <x>`
+ *   - python: `'%.2f' % <x>`
+ *   - node:   MUST mirror THIS function (round-half-to-EVEN on the EXACT IEEE
+ *             double value) — NOT `toFixed` (decimal half-up: 0.125→'0.13' ✗)
+ *             and NOT `Intl.NumberFormat({roundingMode:'halfEven'})` (rounds the
+ *             decimal LITERAL, so 2.675→'2.68' ✗ where printf yields '2.67').
+ *
+ * printf rounds the binary double, so e.g. 2.675 is really 2.67499…824 → 2.67.
+ * We reproduce that by taking the exact decimal expansion of the double
+ * (`toFixed(30)` is exact for a double's representable value), then rounding at
+ * the 2nd decimal ties-to-even. Verified byte-identical to `LC_NUMERIC=C
+ * printf '%.2f'` across 0.125/0.135/2.675/2.685/0.005/0.015/0.025/0.035/1.005/
+ * 12.875/0.999/1.999/99.995/0.42/0.
+ */
 export function fmtCost(usd: number): string {
-  return '$' + usd.toFixed(2)
+  if (!Number.isFinite(usd)) usd = 0
+  const neg = usd < 0
+  const abs = Math.abs(usd)
+
+  // Exact decimal digits of the double (no rounding artifact: toFixed yields
+  // the binary value's exact decimal expansion up to the requested places).
+  const exact = abs.toFixed(30)
+  const dot = exact.indexOf('.')
+  const intPart = exact.slice(0, dot)
+  const frac = exact.slice(dot + 1)
+  const keep = frac.slice(0, 2) // first 2 decimal digits
+  const rest = frac.slice(2) // remainder, drives the tie-break
+
+  let cents = BigInt(intPart) * 100n + BigInt(keep)
+  const firstRest = rest.charAt(0)
+  if (firstRest !== '') {
+    const d = Number(firstRest)
+    if (d > 5) {
+      cents += 1n
+    } else if (d === 5) {
+      const tail = rest.slice(1).replace(/0+$/, '')
+      if (tail.length > 0) cents += 1n // strictly > .5 → round up
+      else if (cents % 2n === 1n) cents += 1n // exactly .5 → ties to even
+    }
+  }
+
+  const sign = neg && cents !== 0n ? '-' : ''
+  const whole = cents / 100n
+  const c = (cents % 100n).toString().padStart(2, '0')
+  return `${sign}$${whole.toString()}.${c}`
 }
 
-/** First stop (sorted DESCENDING by `at`) whose `at <= pct` wins; null if none. */
+/** First stop (sorted DESCENDING by `at`) whose `at <= pct` wins; null if none.
+ *  The preview AND each generator (bash/python/node) MUST mirror this exact
+ *  tie-break: first stop, sorted descending by `at`, with `pct >= at`. */
 export function resolveThreshold(
   stops: ThresholdStop[],
   pct: number,

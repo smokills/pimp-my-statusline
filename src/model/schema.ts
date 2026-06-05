@@ -5,15 +5,27 @@
 import { z } from 'zod'
 import type { StatuslineConfig } from './types'
 
+// An xterm-256 palette index.
+const xterm256Code = z.number().int().min(0).max(255)
+// A raw ANSI-16 SGR foreground code: 30-37 (normal) or 90-97 (bright).
+const ansi16Code = z
+  .number()
+  .int()
+  .refine((c) => (c >= 30 && c <= 37) || (c >= 90 && c <= 97), {
+    message: 'ansi16 code must be 30-37 or 90-97',
+  })
+
+// A threshold stop's `code` is an xterm index by default, or an ansi16 SGR code
+// when `ansi16` is true — both fit in 0..255, the `ansi16` flag disambiguates.
 const thresholdStop = z.object({
-  at: z.number(),
-  code: z.number(),
+  at: z.number().int().min(0).max(100),
+  code: xterm256Code,
   ansi16: z.boolean().optional(),
 })
 
 const colorSpec = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('fixed'), code: z.number() }),
-  z.object({ kind: z.literal('ansi16'), code: z.number() }),
+  z.object({ kind: z.literal('fixed'), code: xterm256Code }),
+  z.object({ kind: z.literal('ansi16'), code: ansi16Code }),
   z.object({ kind: z.literal('threshold'), stops: z.array(thresholdStop) }),
 ])
 
@@ -49,7 +61,7 @@ const metricSegment = z.object({
   ...base,
   type: z.enum(['context', 'session', 'week']),
   parts: z.array(z.enum(['bar', 'percent', 'timer'])),
-  barWidth: z.number(),
+  barWidth: z.number().int().min(1).max(40),
   barChars: z.object({ filled: z.string(), empty: z.string() }),
   valueStyle: textStyle.optional(),
   barStyle: textStyle.optional(),
@@ -94,7 +106,7 @@ const separatorSegment = z.object({
   ...base,
   type: z.literal('separator'),
   fill: z.string(),
-  width: z.union([z.literal('full'), z.number()]),
+  width: z.union([z.literal('full'), z.number().int().min(1)]),
   style: textStyle.optional(),
 })
 
@@ -146,7 +158,7 @@ const petConfig = z.object({
   petId: z.string(),
   metric: z.enum(['context', 'session_5h', 'week_7d']),
   position: z.enum(['left', 'right']),
-  gap: z.number(),
+  gap: z.number().int().min(0).max(3),
   thresholds: z.object({
     idle: z.number(),
     calm: z.number(),

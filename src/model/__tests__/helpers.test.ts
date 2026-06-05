@@ -78,10 +78,34 @@ describe('fmtDuration', () => {
 })
 
 describe('fmtCost', () => {
-  it('two decimals with $', () => {
+  // Each expected value was verified against `LC_NUMERIC=C printf '%.2f' <x>`:
+  //   0.125 -> 0.12   0.135 -> 0.14   2.675 -> 2.67   2.685 -> 2.69
+  //   0.42  -> 0.42   0     -> 0.00   12.875 -> 12.88
+  // C-printf rounds the EXACT IEEE double half-to-even — NOT decimal half-up
+  // (toFixed: 0.125->0.13 ✗) and NOT Intl halfEven on the literal (2.675->2.68 ✗).
+  it('matches C-printf %.2f, not toFixed', () => {
+    expect(fmtCost(0.125)).toBe('$0.12') // toFixed would give $0.13
+    expect(fmtCost(0.135)).toBe('$0.14')
+    expect(fmtCost(2.675)).toBe('$2.67') // Intl halfEven would give $2.68
     expect(fmtCost(0.42)).toBe('$0.42')
     expect(fmtCost(0)).toBe('$0.00')
+  })
+
+  it('more printf-verified cases', () => {
+    expect(fmtCost(2.685)).toBe('$2.69')
+    expect(fmtCost(0.005)).toBe('$0.01')
+    expect(fmtCost(0.015)).toBe('$0.01')
+    expect(fmtCost(0.025)).toBe('$0.03')
+    expect(fmtCost(0.035)).toBe('$0.04')
+    expect(fmtCost(1.005)).toBe('$1.00')
     expect(fmtCost(12.875)).toBe('$12.88')
+    expect(fmtCost(0.999)).toBe('$1.00')
+    expect(fmtCost(99.995)).toBe('$100.00')
+  })
+
+  it('non-finite input → $0.00', () => {
+    expect(fmtCost(NaN)).toBe('$0.00')
+    expect(fmtCost(Infinity)).toBe('$0.00')
   })
 })
 

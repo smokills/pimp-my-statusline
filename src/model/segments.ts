@@ -58,6 +58,13 @@ export interface SegmentDef {
   evaluate(seg: Segment, mock: MockData, ctx: RenderCtx): SegmentRender
 }
 
+// INVARIANT: SEGMENTS is keyed by SegmentType, and SEGMENTS[t].type === t for
+// every key t. Likewise every `seg` passed to SEGMENTS[seg.type].evaluate has
+// `seg.type` equal to that key. This invariant is what makes the per-evaluate
+// `as` narrowing casts below sound: a registry entry only ever receives a
+// segment of its own discriminant. evaluateSegment() at the bottom enforces the
+// dispatch side of the invariant.
+
 // ---------------------------------------------------------------------------
 // Span helpers
 // ---------------------------------------------------------------------------
@@ -89,7 +96,11 @@ function decorate(
   return { spans }
 }
 
-const defaultThresholds: ThresholdStop[] = [
+/** Canonical default threshold triplet — single source of truth, imported by
+ *  defaultPreset (segment value styles) and GlobalOptions.defaultThresholds.
+ *  Matches the user's script color(): >=90 red(31), >=70 yellow(33), else
+ *  green(32); ansi16 codes for byte-faithfulness. */
+export const DEFAULT_THRESHOLD_STOPS: ThresholdStop[] = [
   { at: 90, code: 31, ansi16: true },
   { at: 70, code: 33, ansi16: true },
   { at: 0, code: 32, ansi16: true },
@@ -221,6 +232,12 @@ function evaluateSimple(
     case 'worktree':
       value = mock.worktree?.name
       break
+    default: {
+      // Exhaustiveness guard: adding a SimpleSegment `type` without a branch
+      // above fails compilation here.
+      const _exhaustive: never = seg.type
+      return _exhaustive
+    }
   }
   if (value === undefined || value === '') return EMPTY
   return decorate(seg, ctx, [span(value, seg.style)])
@@ -308,17 +325,20 @@ function evaluateStaticText(
 
 // ---------------------------------------------------------------------------
 // Default-factory helpers
+//
+// Each helper has an EXPLICIT concrete return type (Omit<XSegment,'id'>) so tsc
+// checks field completeness at the factory definition — not via a cast at the
+// call site. Adding a required field to a segment variant then surfaces as a
+// type error here rather than silently producing an under-populated default.
 // ---------------------------------------------------------------------------
 
-function baseDefaults(type: SegmentType): Omit<SegmentBaseNoId, 'type'> & {
-  type: SegmentType
-} {
+/** Defaults shared by SimpleSegment-shaped types. */
+function simpleDefaults(type: SimpleSegment['type']): Omit<SimpleSegment, 'id'> {
   return { type, enabled: true }
 }
-type SegmentBaseNoId = Omit<Segment, 'id'>
 
 function metricDefaults(
-  type: 'context' | 'session' | 'week',
+  type: MetricSegment['type'],
   label: string,
   parts: MetricSegment['parts'],
 ): Omit<MetricSegment, 'id'> {
@@ -329,8 +349,40 @@ function metricDefaults(
     parts,
     barWidth: 5,
     barChars: { filled: '█', empty: '░' },
-    valueStyle: { color: { kind: 'threshold', stops: defaultThresholds } },
+    valueStyle: { color: { kind: 'threshold', stops: DEFAULT_THRESHOLD_STOPS } },
   }
+}
+
+function directoryDefaults(): Omit<DirectorySegment, 'id'> {
+  return { type: 'directory', enabled: true, dirStyle: 'tildeHome' }
+}
+
+function peakDefaults(): Omit<PeakSegment, 'id'> {
+  return {
+    type: 'peak',
+    enabled: true,
+    showCountdown: true,
+    tz: 'America/Los_Angeles',
+    windowDays: [1, 2, 3, 4, 5],
+    startHour: 5,
+    endHour: 11,
+  }
+}
+
+function linesDefaults(): Omit<LinesSegment, 'id'> {
+  return { type: 'lines', enabled: true, linesStyle: 'combined' }
+}
+
+function prDefaults(): Omit<PrSegment, 'id'> {
+  return { type: 'pr', enabled: true, showState: false }
+}
+
+function separatorDefaults(): Omit<SeparatorSegment, 'id'> {
+  return { type: 'separator', enabled: true, fill: '─', width: 'full' }
+}
+
+function staticTextDefaults(): Omit<StaticTextSegment, 'id'> {
+  return { type: 'staticText', enabled: true, text: '' }
 }
 
 // ---------------------------------------------------------------------------
@@ -343,11 +395,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Directory',
     sources: ['cwd', 'workspace.current_dir'],
     metric: false,
-    defaults: () =>
-      ({ ...baseDefaults('directory'), dirStyle: 'tildeHome' }) as Omit<
-        DirectorySegment,
-        'id'
-      >,
+    defaults: directoryDefaults,
     helpers: [],
     evaluate: (seg, mock, ctx) =>
       evaluateDirectory(seg as DirectorySegment, mock, ctx),
@@ -357,7 +405,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Git branch',
     sources: ['_gitBranch'],
     metric: false,
-    defaults: () => baseDefaults('gitBranch') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('gitBranch'),
     helpers: ['gitBranch'],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -366,7 +414,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Model',
     sources: ['model.display_name'],
     metric: false,
-    defaults: () => baseDefaults('model') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('model'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -375,7 +423,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Effort',
     sources: ['effort.level'],
     metric: false,
-    defaults: () => baseDefaults('effort') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('effort'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -418,15 +466,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Peak window',
     sources: [],
     metric: false,
-    defaults: () =>
-      ({
-        ...baseDefaults('peak'),
-        showCountdown: true,
-        tz: 'America/Los_Angeles',
-        windowDays: [1, 2, 3, 4, 5],
-        startHour: 5,
-        endHour: 11,
-      }) as Omit<PeakSegment, 'id'>,
+    defaults: peakDefaults,
     helpers: ['peak', 'timeUntil'],
     evaluate: (seg, mock, ctx) => evaluatePeak(seg as PeakSegment, mock, ctx),
   },
@@ -435,7 +475,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Cost',
     sources: ['cost.total_cost_usd'],
     metric: false,
-    defaults: () => baseDefaults('cost') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('cost'),
     helpers: ['fmtCost'],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -444,7 +484,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Duration',
     sources: ['cost.total_duration_ms'],
     metric: false,
-    defaults: () => baseDefaults('duration') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('duration'),
     helpers: ['fmtDuration'],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -453,11 +493,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Lines changed',
     sources: ['cost.total_lines_added', 'cost.total_lines_removed'],
     metric: false,
-    defaults: () =>
-      ({ ...baseDefaults('lines'), linesStyle: 'combined' }) as Omit<
-        LinesSegment,
-        'id'
-      >,
+    defaults: linesDefaults,
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateLines(seg as LinesSegment, mock, ctx),
   },
@@ -466,7 +502,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Output style',
     sources: ['output_style.name'],
     metric: false,
-    defaults: () => baseDefaults('outputStyle') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('outputStyle'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -475,7 +511,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Vim mode',
     sources: ['vim.mode'],
     metric: false,
-    defaults: () => baseDefaults('vimMode') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('vimMode'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -484,7 +520,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Session name',
     sources: ['session_name'],
     metric: false,
-    defaults: () => baseDefaults('sessionName') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('sessionName'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -493,7 +529,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Agent',
     sources: ['agent.name'],
     metric: false,
-    defaults: () => baseDefaults('agent') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('agent'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -502,8 +538,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Pull request',
     sources: ['pr.number', 'pr.review_state'],
     metric: false,
-    defaults: () =>
-      ({ ...baseDefaults('pr'), showState: false }) as Omit<PrSegment, 'id'>,
+    defaults: prDefaults,
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluatePr(seg as PrSegment, mock, ctx),
   },
@@ -512,7 +547,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Thinking',
     sources: ['thinking.enabled'],
     metric: false,
-    defaults: () => baseDefaults('thinking') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('thinking'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -521,7 +556,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Version',
     sources: ['version'],
     metric: false,
-    defaults: () => baseDefaults('version') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('version'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -530,7 +565,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Worktree',
     sources: ['worktree.name'],
     metric: false,
-    defaults: () => baseDefaults('worktree') as Omit<SimpleSegment, 'id'>,
+    defaults: () => simpleDefaults('worktree'),
     helpers: [],
     evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
   },
@@ -539,11 +574,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Separator',
     sources: ['_columns'],
     metric: false,
-    defaults: () =>
-      ({ ...baseDefaults('separator'), fill: '─', width: 'full' }) as Omit<
-        SeparatorSegment,
-        'id'
-      >,
+    defaults: separatorDefaults,
     helpers: ['truncCols'],
     evaluate: (seg, mock, ctx) =>
       evaluateSeparator(seg as SeparatorSegment, mock, ctx),
@@ -553,11 +584,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     label: 'Static text',
     sources: [],
     metric: false,
-    defaults: () =>
-      ({ ...baseDefaults('staticText'), text: '' }) as Omit<
-        StaticTextSegment,
-        'id'
-      >,
+    defaults: staticTextDefaults,
     helpers: [],
     evaluate: (seg, mock, ctx) =>
       evaluateStaticText(seg as StaticTextSegment, mock, ctx),

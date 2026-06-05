@@ -22,17 +22,14 @@ import type {
   SeparatorSegment,
   SimpleSegment,
   StatuslineConfig,
-  ThresholdStop,
 } from '../types'
 import { DEFAULT_PET_THRESHOLDS } from '../../pets/types'
+import { DEFAULT_THRESHOLD_STOPS } from '../segments'
 
-// Threshold ANSI-16 stops matching the script's color(): >=90 red(31),
-// >=70 yellow(33), else green(32).
-const THRESHOLD_ANSI16: ThresholdStop[] = [
-  { at: 90, code: 31, ansi16: true },
-  { at: 70, code: 33, ansi16: true },
-  { at: 0, code: 32, ansi16: true },
-]
+// Canonical threshold triplet (>=90 red(31) / >=70 yellow(33) / else green(32),
+// ansi16). Imported from the registry so it can never drift from the segment
+// defaults — single source of truth.
+const THRESHOLD_ANSI16 = DEFAULT_THRESHOLD_STOPS
 
 export function defaultConfig(): StatuslineConfig {
   // ----- Row 1: directory + gitBranch -----
