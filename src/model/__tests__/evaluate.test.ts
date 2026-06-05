@@ -265,3 +265,56 @@ describe('label and emoji decoration', () => {
     expect(text(s, mock)).toBe('[Opus]')
   })
 })
+
+describe('threshold colors resolved to concrete colors by evaluate()', () => {
+  const base = SEGMENTS.context.defaults() as Omit<MetricSegment, 'id'>
+  const seg: MetricSegment = {
+    ...base,
+    id: 'c',
+    parts: ['bar', 'percent'],
+    valueStyle: {
+      color: {
+        kind: 'threshold',
+        stops: [
+          { at: 90, code: 31, ansi16: true },
+          { at: 70, code: 33, ansi16: true },
+          { at: 0, code: 32, ansi16: true },
+        ],
+      },
+    },
+  }
+  const mockAt = (pct: number) =>
+    buildMock({
+      context_window: {
+        total_input_tokens: 0,
+        total_output_tokens: 0,
+        context_window_size: 200000,
+        used_percentage: pct,
+        remaining_percentage: 100 - pct,
+        current_usage: null,
+      },
+    })
+
+  it('spans never carry a threshold ColorSpec', () => {
+    for (const pct of [5, 75, 95]) {
+      for (const s of evaluateSegment(seg, mockAt(pct), ctx).spans) {
+        expect(s.style?.color?.kind).not.toBe('threshold')
+      }
+    }
+  })
+
+  it.each([
+    [5, 32],
+    [75, 33],
+    [89, 33],
+    [90, 31],
+    [95, 31],
+  ])('pct %i resolves to ansi16 %i on bar and percent spans', (pct, code) => {
+    const spans = evaluateSegment(seg, mockAt(pct), ctx).spans
+    const styled = spans.filter((s) => s.style?.color)
+    expect(styled.length).toBeGreaterThanOrEqual(2) // bar + percent
+    for (const s of styled) {
+      expect(s.style?.color).toEqual({ kind: 'ansi16', code })
+    }
+  })
+})

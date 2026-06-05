@@ -31,6 +31,7 @@ import {
   fmtCost,
   fmtDuration,
   peakState,
+  resolveThreshold,
   timeUntil,
   truncPct,
 } from './evaluate-helpers'
@@ -134,6 +135,28 @@ function metricSource(
   return { pct: truncPct(bucket.used_percentage), resetsAt: bucket.resets_at }
 }
 
+/** Resolve a possibly-threshold style into a concrete color for `pct`.
+ *
+ *  evaluate() is the only place that knows the segment's percentage, so
+ *  threshold colors are resolved HERE and SegmentRender spans always carry
+ *  concrete (fixed/ansi16) colors. The generators do the opposite: they read
+ *  the threshold stops from the CONFIG and emit a runtime `color(pct)` helper
+ *  that mirrors resolveThreshold's tie-break. */
+function concreteStyle(
+  style: TextStyle | undefined,
+  pct: number,
+): TextStyle | undefined {
+  if (!style?.color || style.color.kind !== 'threshold') return style
+  const stop = resolveThreshold(style.color.stops, pct)
+  if (stop === null) return { ...style, color: undefined }
+  return {
+    ...style,
+    color: stop.ansi16
+      ? { kind: 'ansi16', code: stop.code }
+      : { kind: 'fixed', code: stop.code },
+  }
+}
+
 function evaluateMetric(
   seg: MetricSegment,
   mock: MockData,
@@ -154,9 +177,9 @@ function evaluateMetric(
         seg.barChars.filled,
         seg.barChars.empty,
       )
-      pieces.push(span(bar, seg.barStyle ?? seg.valueStyle))
+      pieces.push(span(bar, concreteStyle(seg.barStyle ?? seg.valueStyle, pct)))
     } else if (part === 'percent') {
-      pieces.push(span(`${pct}%`, seg.valueStyle))
+      pieces.push(span(`${pct}%`, concreteStyle(seg.valueStyle, pct)))
     } else if (part === 'timer') {
       // Timer is only meaningful for session/week and only when a reset is
       // present AND the countdown is non-empty. Context renders an empty timer.

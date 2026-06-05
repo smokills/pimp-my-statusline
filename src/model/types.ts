@@ -237,7 +237,12 @@ export interface StatuslineConfig {
 // ---------------------------------------------------------------------------
 
 /** The styled output of evaluating one segment. EMPTY spans ⇒ the segment is
- *  dropped from the row join entirely (no dangling joiner). */
+ *  dropped from the row join entirely (no dangling joiner).
+ *
+ *  Span styles always carry CONCRETE colors (fixed/ansi16): evaluate() is the
+ *  only place that knows a metric's percentage, so threshold ColorSpecs are
+ *  resolved there. The threshold spec itself stays in the config, where the
+ *  generators read it to emit a runtime `color(pct)` helper. */
 export interface SegmentRender {
   spans: { text: string; style?: TextStyle }[]
 }
