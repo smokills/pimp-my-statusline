@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToAnsi, renderRowsToAnsi } from '../renderToAnsi'
-import { visibleWidth, stripAnsi as stripAnsiLocal } from '../width'
+import { stripAnsi as stripAnsiLocal } from '../width'
 import { defaultConfig } from '../../model/presets/defaultPreset'
 import { typical, fresh, noRateLimits } from '../../model/presets/mockPresets'
 import type { StatuslineConfig } from '../../model/types'
@@ -177,8 +177,8 @@ describe('pet composition — cactus on default config', () => {
     expect(renderToAnsi(cfg, typical())).toEqual(renderRowsToAnsi(cfg, typical()))
   })
 
-  it('left position: pet column + gap prefixes each line; gap honored', () => {
-    const cfg = withPet({ position: 'left', gap: 2, metric: 'context' })
+  it('pet column + gap prefixes each line (always left); gap honored', () => {
+    const cfg = withPet({ gap: 2, metric: 'context' })
     const lines = renderToAnsi(cfg, typical())
     // 3 rows, cactus is 3 tall → 3 output lines.
     expect(lines).toHaveLength(3)
@@ -204,7 +204,7 @@ describe('pet composition — cactus on default config', () => {
       }
       return m
     }
-    const cfg = withPet({ metric: 'context', position: 'left', gap: 1 })
+    const cfg = withPet({ metric: 'context', gap: 1 })
     // cactus thresholds default: idle<=10, calm<50, wary<80, alarmed<90, else panic
     const low = renderToAnsi(cfg, mk(5)) // idle
     const mid = renderToAnsi(cfg, mk(55)) // wary
@@ -233,13 +233,15 @@ describe('pet composition — cactus on default config', () => {
     }
   })
 
-  it('right position pads rows to max width before appending pet', () => {
-    const cfg = withPet({ position: 'right', gap: 1, metric: 'context' })
+  it('every line starts at the same content column (pet width + gap)', () => {
+    const cfg = withPet({ gap: 1, metric: 'context' })
     const lines = renderToAnsi(cfg, typical())
-    // Right layout: padTo(rowCell, maxRowWidth) + gap + petCell. Since every
-    // row is padded to the SAME maxRowWidth and the pet cell is fixed width,
-    // ALL output lines share one total visible width.
-    const widths = lines.map((l) => visibleWidth(l))
-    expect(new Set(widths).size).toBe(1)
+    // Pet is ALWAYS at the left: content begins at column petWidth(6)+gap(1)
+    // on every line, so the pet reads as a stable column.
+    for (const line of lines) {
+      const plain = stripAnsiLocal(line)
+      expect(plain.slice(0, 7).length).toBe(7)
+      expect(plain[6]).toBe(' ')
+    }
   })
 })

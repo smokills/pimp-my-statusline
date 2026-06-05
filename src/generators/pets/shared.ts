@@ -14,7 +14,6 @@ export interface PetPlan {
   width: number
   height: number
   gap: number
-  position: 'left' | 'right'
   metric: StatuslineConfig['pet']['metric']
   thresholds: StatuslineConfig['pet']['thresholds']
   /** Available moods in MOOD_ORDER, each with its colorized (ANSI-baked) rows. */
@@ -61,7 +60,6 @@ export function buildPetPlan(config: StatuslineConfig): PetPlan | null {
     width: pet.width,
     height: pet.height,
     gap: config.pet.gap,
-    position: config.pet.position,
     metric: config.pet.metric,
     thresholds: config.pet.thresholds,
     moods,

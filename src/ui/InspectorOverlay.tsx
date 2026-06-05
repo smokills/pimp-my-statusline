@@ -1,29 +1,19 @@
-// InspectorOverlay — the element inspector as a centered dialog-like card with a
-// backdrop. Tabs ELEMENT · PET · DISPLAY. Opens when a chip is selected; Esc and
-// click-outside close it. The card is anchored toward the bottom of the viewport
-// so the sticky preview stays visible above it on desktop.
+// InspectorOverlay — the ELEMENT inspector as a centered dialog-like card with
+// a backdrop. Opens when a chip is selected; Esc and click-outside close it.
+// The card is anchored toward the bottom of the viewport so the sticky preview
+// stays visible above it on desktop.
 //
-// (Replaces the old bottom-drawer container; the tab CONTENT/keyboard behavior is
-// unchanged — ElementInspector / PetTab / DisplayTab / PlacedSegmentPicker.)
+// This inspector is strictly per-element: the pet and the global display
+// settings live in their own standalone sidebar cards (PetCard / SettingsCard).
 
 import { useEffect, useRef, type JSX } from 'react'
-import { useConfigStore, type DrawerTab } from '../store/configStore'
+import { useConfigStore } from '../store/configStore'
 import { ElementInspector } from './ElementInspector'
-import { PetTab } from './PetTab'
-import { DisplayTab } from './DisplayTab'
 import { PlacedSegmentPicker } from './PlacedSegmentPicker'
 import { IconClose } from './icons'
 
-const TABS: { value: DrawerTab; label: string }[] = [
-  { value: 'element', label: 'Element' },
-  { value: 'pet', label: 'Pet' },
-  { value: 'display', label: 'Display' },
-]
-
 export function InspectorOverlay(): JSX.Element | null {
   const open = useConfigStore((s) => s.drawerOpen)
-  const tab = useConfigStore((s) => s.drawerTab)
-  const setTab = useConfigStore((s) => s.setDrawerTab)
   const close = useConfigStore((s) => s.closeDrawer)
   const selectSegment = useConfigStore((s) => s.selectSegment)
   const selectedId = useConfigStore((s) => s.selectedSegmentId)
@@ -101,28 +91,14 @@ export function InspectorOverlay(): JSX.Element | null {
         tabIndex={-1}
       >
         <div className="inspector-head">
-          <div className="segmented" role="tablist" aria-label="inspector tabs">
-            {TABS.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                role="tab"
-                aria-selected={tab === t.value}
-                onClick={() => setTab(t.value)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <span className="section-head">Element</span>
           <button type="button" className="icon-btn" aria-label="close inspector" title="close (Esc)" onClick={dismiss}>
             <IconClose />
           </button>
         </div>
 
         <div className="inspector-body">
-          {tab === 'element' && (seg ? <ElementInspector seg={seg} /> : <PlacedSegmentPicker />)}
-          {tab === 'pet' && <PetTab />}
-          {tab === 'display' && <DisplayTab />}
+          {seg ? <ElementInspector seg={seg} /> : <PlacedSegmentPicker />}
         </div>
       </div>
     </div>

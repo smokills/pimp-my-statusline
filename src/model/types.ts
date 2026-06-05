@@ -193,7 +193,7 @@ export interface PetConfig {
   enabled: boolean
   petId: string // key into the pet roster
   metric: PetMetric // 'context' | 'session_5h' | 'week_7d'
-  position: 'left' | 'right'
+  // The pet is ALWAYS drawn at the left of the statusline; rows follow.
   gap: number // 0-3 spaces between pet column and rows
   thresholds: PetThresholds
 }

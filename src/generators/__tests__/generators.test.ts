@@ -120,7 +120,6 @@ describe('helper pruning (directory + model only)', () => {
         enabled: false,
         petId: 'cactus',
         metric: 'context',
-        position: 'left',
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
@@ -213,7 +212,7 @@ describe('pet width invariance across pcts', () => {
 
   // Rows: directory + model (fixed), separator at a fixed width. No metric
   // segment displays session_5h, so row content is constant across pcts.
-  function petLayoutConfig(position: 'left' | 'right'): StatuslineConfig {
+  function petLayoutConfig(): StatuslineConfig {
     const directory = { ...SEGMENTS.directory.defaults(), id: 'directory' }
     const model = { ...SEGMENTS.model.defaults(), id: 'model' }
     const separator = { ...SEGMENTS.separator.defaults(), id: 'separator', width: 30 as const }
@@ -228,7 +227,6 @@ describe('pet width invariance across pcts', () => {
         enabled: true,
         petId: 'cactus',
         metric: 'session_5h',
-        position,
         gap: 2,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
@@ -236,29 +234,27 @@ describe('pet width invariance across pcts', () => {
     }
   }
 
-  for (const position of ['left', 'right'] as const) {
-    it(`pet (${position}) agrees across pct 5/55/95 with constant line widths`, () => {
-      const cfg = petLayoutConfig(position)
-      const paths = writeScripts(cfg)
-      const widthsByPct: number[][] = []
-      for (const pct of [5, 55, 95]) {
-        const mock = petMock(pct)
-        const outBash = run('bash', paths.bash, mock)
-        const outPy = run('python', paths.python, mock)
-        const outNode = run('node', paths.node, mock)
-        expect(outPy).toBe(outBash)
-        expect(outNode).toBe(outBash)
-        const widths = outBash
-          .replace(/\n$/, '')
-          .split('\n')
-          .map((l) => stripAnsi(l).length)
-        widthsByPct.push(widths)
-      }
-      // every line's visible width is constant across the three pcts.
-      expect(widthsByPct[1]).toEqual(widthsByPct[0])
-      expect(widthsByPct[2]).toEqual(widthsByPct[0])
-    })
-  }
+  it('pet (always left) agrees across pct 5/55/95 with constant line widths', () => {
+    const cfg = petLayoutConfig()
+    const paths = writeScripts(cfg)
+    const widthsByPct: number[][] = []
+    for (const pct of [5, 55, 95]) {
+      const mock = petMock(pct)
+      const outBash = run('bash', paths.bash, mock)
+      const outPy = run('python', paths.python, mock)
+      const outNode = run('node', paths.node, mock)
+      expect(outPy).toBe(outBash)
+      expect(outNode).toBe(outBash)
+      const widths = outBash
+        .replace(/\n$/, '')
+        .split('\n')
+        .map((l) => stripAnsi(l).length)
+      widthsByPct.push(widths)
+    }
+    // every line's visible width is constant across the three pcts.
+    expect(widthsByPct[1]).toEqual(widthsByPct[0])
+    expect(widthsByPct[2]).toEqual(widthsByPct[0])
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -281,7 +277,6 @@ function singleRowConfig(
       enabled: false,
       petId: 'cactus',
       metric: 'context',
-      position: 'left',
       gap: 1,
       thresholds: { ...DEFAULT_PET_THRESHOLDS },
     },
@@ -353,7 +348,6 @@ describe('regression', () => {
         enabled: false,
         petId: 'cactus',
         metric: 'context',
-        position: 'left',
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
@@ -398,7 +392,6 @@ describe('regression', () => {
         enabled: false,
         petId: 'cactus',
         metric: 'context',
-        position: 'left',
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
@@ -433,7 +426,6 @@ describe('cost formatting parity (realistic values)', () => {
         enabled: false,
         petId: 'cactus',
         metric: 'context',
-        position: 'left',
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },

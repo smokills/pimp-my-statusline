@@ -13,6 +13,8 @@ import { TerminalMockup } from './ui/TerminalMockup'
 import { AnsiPreview } from './ui/AnsiPreview'
 import { MockStrip } from './ui/MockStrip'
 import { ElementLibrary } from './ui/ElementLibrary'
+import { PetCard } from './ui/PetCard'
+import { SettingsCard } from './ui/SettingsCard'
 import { RowCanvas } from './ui/RowCanvas'
 import { InspectorOverlay } from './ui/InspectorOverlay'
 import { ExportModal } from './ui/ExportModal'
@@ -21,7 +23,7 @@ import { Landing } from './ui/landing/Landing'
 import { useConfigStore, onRehydrateWarning } from './store/configStore'
 import { useMockStore } from './store/mockStore'
 
-type MobileTab = 'build' | 'style' | 'pet'
+type MobileTab = 'build' | 'style'
 
 function Builder(): JSX.Element {
   const { toast } = useToast()
@@ -44,10 +46,9 @@ function Builder(): JSX.Element {
 
   const effectiveFocusRow = focusedRowId ?? firstRowId
 
-  // Mobile tab → open the inspector on the right tab.
+  // Mobile STYLE tab → open the element inspector (picker when no selection).
   useEffect(() => {
-    if (mobileTab === 'style') openDrawer('element')
-    else if (mobileTab === 'pet') openDrawer('pet')
+    if (mobileTab === 'style') openDrawer()
   }, [mobileTab, openDrawer])
 
   return (
@@ -70,7 +71,7 @@ function Builder(): JSX.Element {
 
       {/* Mobile segmented tabs (hidden on desktop). */}
       <nav className="mobile-tabs" aria-label="sections">
-        {(['build', 'style', 'pet'] as MobileTab[]).map((t) => (
+        {(['build', 'style'] as MobileTab[]).map((t) => (
           <div key={t} className="segmented seg" style={{ flex: 1 }}>
             <button
               type="button"
@@ -78,7 +79,7 @@ function Builder(): JSX.Element {
               aria-pressed={mobileTab === t}
               onClick={() => setMobileTab(t)}
             >
-              {t === 'build' ? 'Build' : t === 'style' ? 'Style' : 'Pet'}
+              {t === 'build' ? 'Build' : 'Style'}
             </button>
           </div>
         ))}
@@ -89,6 +90,10 @@ function Builder(): JSX.Element {
           <RowCanvas focusedRowId={effectiveFocusRow} onFocusRow={setFocusedRowId} />
         </div>
         <div className={`editor-library ${mobileTab === 'build' ? '' : 'mobile-hide'}`}>
+          {/* The pet and the global settings are standalone, config-wide cards
+              — deliberately OUTSIDE the per-element inspector. */}
+          <PetCard />
+          <SettingsCard />
           <ElementLibrary focusedRowId={effectiveFocusRow} />
         </div>
       </main>

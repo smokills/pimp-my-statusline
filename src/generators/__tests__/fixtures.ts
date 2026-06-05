@@ -28,7 +28,6 @@ export function buildMaximalConfig(petEnabled: boolean): StatuslineConfig {
       enabled: petEnabled,
       petId: 'cactus',
       metric: 'session_5h',
-      position: 'left',
       gap: 1,
       thresholds: { ...DEFAULT_PET_THRESHOLDS },
     },

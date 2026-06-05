@@ -1,8 +1,8 @@
 // Bash pet emitter. Frames are colorized at GENERATE time (parity by
 // construction) and baked into per-mood/per-row $'...' variables with real ESC
 // bytes. Mood selection ports selectMood (trunc + clamp + thresholds +
-// fallbacks). Composition: left = straight-line concat (gap baked); right =
-// strip_ansi/visible_len + pad loop.
+// fallbacks). Composition: the pet column is ALWAYS at the left — straight-line
+// concat (gap baked), no runtime width math.
 
 import type { StatuslineConfig } from '../../model/types'
 import type { RowPlan } from '../types'
@@ -85,9 +85,9 @@ function emitMoodSelection(plan: PetPlan): string[] {
   return lines
 }
 
-/** Composition + output. Mirrors compose(): left = petCell + gap + rowCell;
- *  right = padTo(rowCell, maxRowVisibleWidth) + gap + petCell. Output length is
- *  max(petHeight, rowCount). */
+/** Composition + output. Mirrors compose(): each line = petCell + gap +
+ *  rowCell (pet always at the left). Output length is max(petHeight, rowCount).
+ *  Straight-line printf per line — no runtime width math needed. */
 export function emitBashPetCompose(config: StatuslineConfig, rows: RowPlan[]): string[] {
   const plan = buildPetPlan(config)
   if (!plan) return []
@@ -98,47 +98,11 @@ export function emitBashPetCompose(config: StatuslineConfig, rows: RowPlan[]): s
   const Lout = Math.max(petH, rowCount)
   const blank = ' '.repeat(plan.width)
 
-  lines.push('# --- Pet composition + output ---')
-
-  if (plan.position === 'right') {
-    lines.push(...emitVisibleLen())
-    // Compute maxRowVisibleWidth across the row vars.
-    lines.push('_pet_maxw=0')
-    for (const plan2 of rows) {
-      lines.push(`_pet_vw=$(visible_len "$${plan2.rowVar}"); [ "$_pet_vw" -gt "$_pet_maxw" ] && _pet_maxw=$_pet_vw`)
-    }
-  }
-
+  lines.push('# --- Pet composition + output (pet column left, rows follow) ---')
   for (let i = 0; i < Lout; i++) {
     const petCell = i < petH ? `"$PET_${i}"` : `'${blank}'`
     const rowCell = i < rowCount ? `"$${rows[i].rowVar}"` : `''`
-    if (plan.position === 'left') {
-      lines.push(`printf '%s\\n' ${petCell}${gapStr.length ? `'${gapStr}'` : ''}${rowCell}`)
-    } else {
-      // right: pad rowCell to maxw, then gap, then pet cell.
-      lines.push(`_pet_rc=$(pad_to ${rowCell} "$_pet_maxw")`)
-      lines.push(`printf '%s\\n' "$_pet_rc"${gapStr.length ? `'${gapStr}'` : ''}${petCell}`)
-    }
+    lines.push(`printf '%s\\n' ${petCell}${gapStr.length ? `'${gapStr}'` : ''}${rowCell}`)
   }
   return lines
-}
-
-/** visible_len + pad_to (right-side composition only). */
-function emitVisibleLen(): string[] {
-  return [
-    '# strip ANSI (SGR + OSC8) and measure visible length; pad to a target.',
-    'strip_ansi() {',
-    "  local s=\"$1\"",
-    "  s=$(printf '%s' \"$s\" | sed -E $'s/\\x1b\\\\[[0-9;]*m//g; s/\\x1b\\\\]8;;[^\\x07\\x1b]*(\\x07|\\x1b\\\\\\\\)//g')",
-    "  printf '%s' \"$s\"",
-    '}',
-    'visible_len() {',
-    '  local s; s=$(strip_ansi "$1"); printf \'%s\' "${#s}"',
-    '}',
-    'pad_to() {',
-    '  local s="$1" target="$2" vis; vis=$(visible_len "$s")',
-    '  local deficit=$(( target - vis ))',
-    '  if [ "$deficit" -gt 0 ]; then printf \'%s%*s\' "$s" "$deficit" \'\'; else printf \'%s\' "$s"; fi',
-    '}',
-  ]
 }

@@ -67,28 +67,15 @@ export function emitPyPetCompose(config: StatuslineConfig, rows: RowPlan[]): str
   const plan = buildPetPlan(config)
   if (!plan) return []
   const lines: string[] = []
-  lines.push('# --- Pet composition + output ---')
+  lines.push('# --- Pet composition + output (pet column left, rows follow) ---')
   lines.push(`_rows = [${rows.map((r) => r.rowVar).join(', ')}]`)
   lines.push(`_pet_w = ${plan.width}`)
   lines.push(`_gap = ${plan.gap}`)
-  lines.push("import re")
-  lines.push("_ansi_re = re.compile('\\033\\\\[[0-9;]*m')")
-  lines.push("_osc8_re = re.compile('\\033\\\\]8;;[^\\007\\033]*(?:\\007|\\033\\\\\\\\)')")
-  lines.push('def _visible_len(s): return len(_ansi_re.sub("", _osc8_re.sub("", s)))')
   lines.push('_lout = max(len(_pet_rows), len(_rows))')
   lines.push("_blank = ' ' * _pet_w")
-  if (plan.position === 'right') {
-    lines.push('_maxw = max((_visible_len(r) for r in _rows), default=0)')
-  }
   lines.push('for _i in range(_lout):')
   lines.push('    _pc = _pet_rows[_i] if _i < len(_pet_rows) else _blank')
   lines.push("    _rc = _rows[_i] if _i < len(_rows) else ''")
-  if (plan.position === 'left') {
-    lines.push("    print(_pc + (' ' * _gap) + _rc)")
-  } else {
-    lines.push('    _deficit = _maxw - _visible_len(_rc)')
-    lines.push("    if _deficit > 0: _rc = _rc + (' ' * _deficit)")
-    lines.push("    print(_rc + (' ' * _gap) + _pc)")
-  }
+  lines.push("    print(_pc + (' ' * _gap) + _rc)")
   return lines
 }

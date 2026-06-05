@@ -68,28 +68,16 @@ export function emitNodePetCompose(config: StatuslineConfig, rows: RowPlan[]): s
   if (!plan) return []
   const I = '  '
   const lines: string[] = []
-  lines.push(`${I}// --- Pet composition + output ---`)
+  lines.push(`${I}// --- Pet composition + output (pet column left, rows follow) ---`)
   lines.push(`${I}const _rows = [${rows.map((r) => r.rowVar).join(', ')}];`)
   lines.push(`${I}const _petW = ${plan.width};`)
   lines.push(`${I}const _gap = ${plan.gap};`)
-  lines.push(`${I}const _ansiRe = /\\x1b\\[[0-9;]*m/g;`)
-  lines.push(`${I}const _osc8Re = /\\x1b\\]8;;[^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)/g;`)
-  lines.push(`${I}const _visibleLen = (s) => s.replace(_osc8Re, "").replace(_ansiRe, "").length;`)
   lines.push(`${I}const _lout = Math.max(_petRows.length, _rows.length);`)
   lines.push(`${I}const _blank = " ".repeat(_petW);`)
-  if (plan.position === 'right') {
-    lines.push(`${I}const _maxw = _rows.reduce((m, r) => Math.max(m, _visibleLen(r)), 0);`)
-  }
   lines.push(`${I}for (let _i = 0; _i < _lout; _i++) {`)
   lines.push(`${I}  const _pc = _i < _petRows.length ? _petRows[_i] : _blank;`)
-  lines.push(`${I}  let _rc = _i < _rows.length ? _rows[_i] : "";`)
-  if (plan.position === 'left') {
-    lines.push(`${I}  console.log(_pc + " ".repeat(_gap) + _rc);`)
-  } else {
-    lines.push(`${I}  const _deficit = _maxw - _visibleLen(_rc);`)
-    lines.push(`${I}  if (_deficit > 0) _rc = _rc + " ".repeat(_deficit);`)
-    lines.push(`${I}  console.log(_rc + " ".repeat(_gap) + _pc);`)
-  }
+  lines.push(`${I}  const _rc = _i < _rows.length ? _rows[_i] : "";`)
+  lines.push(`${I}  console.log(_pc + " ".repeat(_gap) + _rc);`)
   lines.push(`${I}}`)
   return lines
 }

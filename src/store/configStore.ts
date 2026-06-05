@@ -23,18 +23,15 @@ import { defaultConfig } from '../model/presets/defaultPreset'
 // Types
 // ---------------------------------------------------------------------------
 
-export type DrawerTab = 'element' | 'pet' | 'display'
-
 export interface ConfigState {
   config: StatuslineConfig
   selectedSegmentId: string | null
-  drawerTab: DrawerTab
   drawerOpen: boolean
 
-  // selection
+  // selection — the drawer is the ELEMENT inspector only (pet and global
+  // settings live in their own standalone cards in the builder sidebar).
   selectSegment(id: string | null): void
-  setDrawerTab(tab: DrawerTab): void
-  openDrawer(tab?: DrawerTab): void
+  openDrawer(): void
   closeDrawer(): void
 
   // segment mutation
@@ -331,18 +328,15 @@ export const useConfigStore = create<ConfigState>()(
     (set, get) => ({
       config: defaultConfig(),
       selectedSegmentId: null,
-      drawerTab: 'element',
       drawerOpen: false,
 
       selectSegment: (id) =>
         set(() =>
           id === null
             ? { selectedSegmentId: null, drawerOpen: false }
-            : { selectedSegmentId: id, drawerOpen: true, drawerTab: 'element' },
+            : { selectedSegmentId: id, drawerOpen: true },
         ),
-      setDrawerTab: (drawerTab) => set({ drawerTab }),
-      openDrawer: (tab) =>
-        set((s) => ({ drawerOpen: true, drawerTab: tab ?? s.drawerTab })),
+      openDrawer: () => set({ drawerOpen: true }),
       closeDrawer: () => set({ drawerOpen: false }),
 
       addSegment: (type, rowId) => {

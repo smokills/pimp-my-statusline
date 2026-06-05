@@ -144,7 +144,9 @@ const petConfig = z.object({
   enabled: z.boolean(),
   petId: z.string(),
   metric: z.enum(['context', 'session_5h', 'week_7d']),
-  position: z.enum(['left', 'right']),
+  // NOTE: older exported configs may carry a `position` key ('left'|'right');
+  // z.object strips unknown keys on parse, so legacy markers still import and
+  // simply render left (the only supported side now).
   gap: z.number().int().min(0).max(3),
   thresholds: z.object({
     idle: z.number(),

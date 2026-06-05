@@ -177,45 +177,31 @@ export function colorizeFrame(frame: Frame, bodyColor: number): string[] {
 // Composition
 // ---------------------------------------------------------------------------
 
-/** Append spaces up to `target` visible width; no-op when already ≥ target. */
-export function padTo(s: string, target: number): string {
-  const deficit = target - visibleLen(s)
-  return deficit > 0 ? s + ' '.repeat(deficit) : s
-}
-
 /**
- * Top-aligned zip of a pet column against the statusline rows. Output length is
- * max(petLines.length, rowLines.length). Composition is ALWAYS top-aligned
- * (there is no valign).
+ * Top-aligned zip of the pet column against the statusline rows. The pet is
+ * ALWAYS drawn at the LEFT of the statusline; the rows follow to its right.
+ * Output length is max(petLines.length, rowLines.length); composition is
+ * ALWAYS top-aligned (there is no valign).
  *
- * left:  petCell + gapStr + rowCell   (trailing spaces are kept — byte parity)
- * right: padTo(rowCell, maxRowVisibleWidth) + gapStr + petCell
- *
- * A missing pet row is a blank cell of `petWidth` spaces; a missing row cell is
- * the empty string.
+ * Each line: petCell + gapStr + rowCell (trailing spaces kept — byte parity).
+ * A missing pet row is a blank cell of `petWidth` spaces; a missing row cell
+ * is the empty string.
  */
 export function compose(
   petLines: string[],
   petWidth: number,
   rowLines: string[],
-  side: 'left' | 'right',
   gap: number,
 ): string[] {
   const Lout = Math.max(petLines.length, rowLines.length)
   const blank = ' '.repeat(petWidth)
   const gapStr = ' '.repeat(gap)
 
-  const maxRowVisibleWidth = rowLines.reduce((m, r) => Math.max(m, visibleLen(r)), 0)
-
   const out: string[] = []
   for (let i = 0; i < Lout; i++) {
     const petCell = i < petLines.length ? petLines[i] : blank
     const rowCell = i < rowLines.length ? rowLines[i] : ''
-    if (side === 'left') {
-      out.push(petCell + gapStr + rowCell)
-    } else {
-      out.push(padTo(rowCell, maxRowVisibleWidth) + gapStr + petCell)
-    }
+    out.push(petCell + gapStr + rowCell)
   }
   return out
 }

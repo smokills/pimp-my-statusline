@@ -6,7 +6,6 @@ import {
   selectMood,
   colorizeRow,
   colorizeFrame,
-  padTo,
   compose,
   isAllowedChar,
 } from './runtime.ts'
@@ -190,67 +189,27 @@ describe('colorizeFrame', () => {
 })
 
 // ---------------------------------------------------------------------------
-// padTo
-// ---------------------------------------------------------------------------
-
-describe('padTo', () => {
-  it('appends spaces up to target', () => {
-    expect(padTo('ab', 5)).toBe('ab   ')
-  })
-
-  it('is a no-op when already at or beyond target', () => {
-    expect(padTo('abcde', 5)).toBe('abcde')
-    expect(padTo('abcdef', 5)).toBe('abcdef')
-  })
-
-  it('measures visible width when padding', () => {
-    expect(padTo('\x1b[31mab\x1b[0m', 4)).toBe('\x1b[31mab\x1b[0m  ')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// compose
+// compose — the pet is ALWAYS the left column; rows follow
 // ---------------------------------------------------------------------------
 
 describe('compose', () => {
-  it('left side, pet taller than rows: emits pet-only overflow lines with art intact', () => {
+  it('pet taller than rows: emits pet-only overflow lines with art intact', () => {
     const pet = ['AAA', 'BBB', 'CCC'] // width 3
     const rows = ['row1']
-    const out = compose(pet, 3, rows, 'left', 1)
+    const out = compose(pet, 3, rows, 1)
     expect(out).toEqual(['AAA row1', 'BBB ', 'CCC '])
   })
 
-  it('left side, pet shorter than rows: blank pet cells keep column alignment', () => {
+  it('pet shorter than rows: blank pet cells keep column alignment', () => {
     const pet = ['AAA'] // width 3
     const rows = ['row1', 'row2', 'row3']
-    const out = compose(pet, 3, rows, 'left', 1)
+    const out = compose(pet, 3, rows, 1)
     expect(out).toEqual(['AAA row1', '    row2', '    row3'])
   })
 
-  it('left side honours gap width', () => {
-    const out = compose(['PP'], 2, ['r'], 'left', 3)
+  it('honours gap width', () => {
+    const out = compose(['PP'], 2, ['r'], 3)
     expect(out).toEqual(['PP   r'])
-  })
-
-  it('right side pads rows to max visible width before the pet column', () => {
-    const pet = ['AAA', 'BBB', 'CCC'] // width 3
-    const rows = ['short', 'longer-row'] // max visible width = 10
-    const out = compose(pet, 3, rows, 'right', 1)
-    expect(out).toEqual([
-      'short      AAA', // 'short' padded to 10 + ' ' + 'AAA'
-      'longer-row BBB',
-      '           CCC', // empty row padded to 10 + ' ' + 'CCC'
-    ])
-  })
-
-  it('right side keeps pet column aligned when rows are longer than the pet', () => {
-    const pet = ['PP'] // width 2
-    const rows = ['aaaa', 'bb'] // max width 4
-    const out = compose(pet, 2, rows, 'right', 1)
-    expect(out).toEqual([
-      'aaaa PP',
-      'bb     ', // 'bb' -> 'bb  ' (pad to 4) + ' ' + blank pet '  '
-    ])
   })
 })
 

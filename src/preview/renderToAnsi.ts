@@ -156,5 +156,5 @@ export function renderToAnsi(config: StatuslineConfig, mock: MockData): string[]
   if (frame === undefined) return rowLines
 
   const petLines = colorizeFrame(frame, pet.bodyColor)
-  return compose(petLines, pet.width, rowLines, config.pet.position, config.pet.gap)
+  return compose(petLines, pet.width, rowLines, config.pet.gap)
 }

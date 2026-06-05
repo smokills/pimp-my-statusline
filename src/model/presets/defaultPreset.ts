@@ -119,7 +119,6 @@ export function defaultConfig(): StatuslineConfig {
       enabled: false,
       petId: 'cactus',
       metric: 'context',
-      position: 'left',
       gap: 1,
       thresholds: { ...DEFAULT_PET_THRESHOLDS },
     },
