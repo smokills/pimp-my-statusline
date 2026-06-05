@@ -1,0 +1,61 @@
+name: test-build-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Rapid pushes must not race each other's deploys.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Parity tests execute generated bash/python3/node scripts. All three
+      # interpreters ship on ubuntu-latest; jq does too, but guard anyway.
+      # NOTE: never validate `date` portability here — CI is GNU/uutils land,
+      # macOS BSD date is covered by the no-`date -d` codegen rule instead.
+      - name: Ensure jq
+        run: jq --version || sudo apt-get install -y jq
+      - run: npm ci
+      - run: npm test
+        env:
+          LANG: C.UTF-8
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

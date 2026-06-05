@@ -1,0 +1,4 @@
+# Golden ANSI snapshots are byte-exact fixtures: no EOL conversion, no diff
+# whitespace tricks. Treat as binary-ish text.
+tests/golden/** -text whitespace=-trailing-space
+* text=auto eol=lf

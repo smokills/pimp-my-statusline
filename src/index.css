@@ -1,0 +1,11 @@
+/* Minimal reset placeholder — the PHOSPHOR theme lands in the UI phase. */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: monospace;
+}
