@@ -44,6 +44,14 @@ import {
   metricResetPath,
   metricSourcePath,
   simplePath,
+  COST_TOTAL_USD,
+  COST_DURATION_MS,
+  COST_LINES_ADDED,
+  COST_LINES_REMOVED,
+  PR_NUMBER,
+  PR_REVIEW_STATE,
+  DIR_CWD,
+  DIR_WORKSPACE,
   type MetricType,
 } from './segments/paths'
 import { bashColorFn, bashHelper, bashSgrWrap } from './helpers/bash'
@@ -117,7 +125,7 @@ function collectFields(config: StatuslineConfig, uidOf: (seg: Segment) => string
   let dirEmitted = false
   const ensureDir = () => {
     if (dirEmitted) return
-    push('EX_dir', '(.cwd // .workspace.current_dir // "")', 'directory / git cwd')
+    push('EX_dir', `(${jqPath(DIR_CWD)} // ${jqPath(DIR_WORKSPACE)} // "")`, 'directory / git cwd')
     dirEmitted = true
   }
   if (hasGitSegment(config)) ensureDir()
@@ -148,16 +156,16 @@ function collectFields(config: StatuslineConfig, uidOf: (seg: Segment) => string
           break
         case 'cost':
           push(`EX_${u}_has`, jqFlag(jqHas(['cost'])), 'Cost present')
-          push(`EX_${u}`, '(.cost.total_cost_usd // 0)', 'Cost USD')
+          push(`EX_${u}`, `(${jqPath(COST_TOTAL_USD)} // 0)`, 'Cost USD')
           break
         case 'duration':
           push(`EX_${u}_has`, jqFlag(jqHas(['cost'])), 'Duration: cost present')
-          push(`EX_${u}`, '(.cost.total_duration_ms // 0)', 'Duration ms')
+          push(`EX_${u}`, `(${jqPath(COST_DURATION_MS)} // 0)`, 'Duration ms')
           break
         case 'lines':
           push(`EX_${u}_has`, jqFlag(jqHas(['cost'])), 'Lines: cost present')
-          push(`EX_${u}_add`, '(.cost.total_lines_added // 0)', 'Lines added')
-          push(`EX_${u}_rem`, '(.cost.total_lines_removed // 0)', 'Lines removed')
+          push(`EX_${u}_add`, `(${jqPath(COST_LINES_ADDED)} // 0)`, 'Lines added')
+          push(`EX_${u}_rem`, `(${jqPath(COST_LINES_REMOVED)} // 0)`, 'Lines removed')
           break
         case 'context':
         case 'session':
@@ -172,9 +180,9 @@ function collectFields(config: StatuslineConfig, uidOf: (seg: Segment) => string
         }
         case 'pr':
           push(`EX_${u}_has`, jqFlag(jqHas(['pr'])), 'PR present')
-          push(`EX_${u}_num`, '(.pr.number // "")', 'PR number')
+          push(`EX_${u}_num`, `(${jqPath(PR_NUMBER)} // "")`, 'PR number')
           if ((seg as PrSegment).showState) {
-            push(`EX_${u}_state`, '(.pr.review_state // "")', 'PR review state')
+            push(`EX_${u}_state`, `(${jqPath(PR_REVIEW_STATE)} // "")`, 'PR review state')
           }
           break
         case 'separator':

@@ -28,6 +28,14 @@ import {
   metricResetPath,
   metricSourcePath,
   simplePath,
+  COST_TOTAL_USD,
+  COST_DURATION_MS,
+  COST_LINES_ADDED,
+  COST_LINES_REMOVED,
+  PR_NUMBER,
+  PR_REVIEW_STATE,
+  DIR_CWD,
+  DIR_WORKSPACE,
   type MetricType,
 } from './segments/paths'
 import { nodeColorFn, nodeHelper, nodeSgrWrap } from './helpers/node'
@@ -103,7 +111,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   if (seg.type === 'cost') {
     lines.push(`${I}let ${out} = "";`)
     lines.push(`${I}if (data.cost !== undefined) {`)
-    lines.push(`${I}  const ${tmp} = fmt_cost(Number(data.cost?.total_cost_usd) || 0);`)
+    lines.push(`${I}  const ${tmp} = fmt_cost(Number(${optChain(COST_TOTAL_USD)}) || 0);`)
     lines.push(...assignDecorated(out, seg, g, [v(tmp)], seg.style, I + '  ', true))
     lines.push(`${I}}`)
     return lines
@@ -111,7 +119,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   if (seg.type === 'duration') {
     lines.push(`${I}let ${out} = "";`)
     lines.push(`${I}if (data.cost !== undefined) {`)
-    lines.push(`${I}  const ${tmp} = fmt_duration(Number(data.cost?.total_duration_ms) || 0);`)
+    lines.push(`${I}  const ${tmp} = fmt_duration(Number(${optChain(COST_DURATION_MS)}) || 0);`)
     lines.push(...assignDecorated(out, seg, g, [v(tmp)], seg.style, I + '  ', true))
     lines.push(`${I}}`)
     return lines
@@ -346,8 +354,8 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.lines} ---`]
   lines.push(`${I}let ${out} = "";`)
   lines.push(`${I}if (data.cost !== undefined) {`)
-  lines.push(`${I}  const ${addVar} = data.cost?.total_lines_added || 0;`)
-  lines.push(`${I}  const ${remVar} = data.cost?.total_lines_removed || 0;`)
+  lines.push(`${I}  const ${addVar} = ${optChain(COST_LINES_ADDED)} || 0;`)
+  lines.push(`${I}  const ${remVar} = ${optChain(COST_LINES_REMOVED)} || 0;`)
   const value: ValueSpan[] = []
   if (seg.linesStyle === 'addedOnly') {
     value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
@@ -372,10 +380,10 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.pr} ---`]
   lines.push(`${I}let ${out} = "";`)
   lines.push(`${I}if (data.pr !== undefined) {`)
-  lines.push(`${I}  const ${numVar} = data.pr?.number === undefined || data.pr?.number === null ? "" : String(data.pr.number);`)
+  lines.push(`${I}  const ${numVar} = ${optChain(PR_NUMBER)} === undefined || ${optChain(PR_NUMBER)} === null ? "" : String(${optChain(PR_NUMBER)});`)
   const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v(numVar)], seg.style) }]
   if (seg.showState) {
-    lines.push(`${I}  const ${stateVar} = data.pr?.review_state || "";`)
+    lines.push(`${I}  const ${stateVar} = ${optChain(PR_REVIEW_STATE)} || "";`)
     value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
     value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
@@ -446,7 +454,7 @@ export const nodeEmitter: Emitter = {
     lines.push('  // Injectable clock (PMSL_NOW) so output is reproducible/testable.')
     lines.push('  const NOW = ("PMSL_NOW" in process.env) && process.env.PMSL_NOW')
     lines.push('    ? parseInt(process.env.PMSL_NOW, 10) : Math.trunc(Date.now() / 1000);')
-    lines.push('  const _dirCwd = data.cwd || data.workspace?.current_dir || "";')
+    lines.push(`  const _dirCwd = ${optChain(DIR_CWD)} || ${optChain(DIR_WORKSPACE)} || "";`)
     if (needsGit(config)) {
       lines.push('  const _gitBranchFn = (cwd) => {')
       lines.push('    try {')

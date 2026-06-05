@@ -27,6 +27,14 @@ import {
   metricResetPath,
   metricSourcePath,
   simplePath,
+  COST_TOTAL_USD,
+  COST_DURATION_MS,
+  COST_LINES_ADDED,
+  COST_LINES_REMOVED,
+  PR_NUMBER,
+  PR_REVIEW_STATE,
+  DIR_CWD,
+  DIR_WORKSPACE,
   type MetricType,
 } from './segments/paths'
 import { pyColorFn, pyHelper, pySgrWrap } from './helpers/python'
@@ -152,7 +160,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   }
   if (seg.type === 'cost') {
     lines.push(`if 'cost' in data:`)
-    lines.push(`    ${tmp} = fmt_cost(float((data.get('cost') or {}).get('total_cost_usd') or 0))`)
+    lines.push(`    ${tmp} = fmt_cost(float(${getExpr(COST_TOTAL_USD)} or 0))`)
     lines.push(...assignSpansDecorated(out, seg, g, [v(tmp)], seg.style, '    '))
     lines.push('else:')
     lines.push(`    ${out} = ''`)
@@ -160,7 +168,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   }
   if (seg.type === 'duration') {
     lines.push(`if 'cost' in data:`)
-    lines.push(`    ${tmp} = fmt_duration(int((data.get('cost') or {}).get('total_duration_ms') or 0))`)
+    lines.push(`    ${tmp} = fmt_duration(int(${getExpr(COST_DURATION_MS)} or 0))`)
     lines.push(...assignSpansDecorated(out, seg, g, [v(tmp)], seg.style, '    '))
     lines.push('else:')
     lines.push(`    ${out} = ''`)
@@ -351,8 +359,8 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const remVar = `_${u}_rem`
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.lines} ---`]
   lines.push(`if 'cost' in data:`)
-  lines.push(`    ${addVar} = (data.get('cost') or {}).get('total_lines_added') or 0`)
-  lines.push(`    ${remVar} = (data.get('cost') or {}).get('total_lines_removed') or 0`)
+  lines.push(`    ${addVar} = ${getExpr(COST_LINES_ADDED)} or 0`)
+  lines.push(`    ${remVar} = ${getExpr(COST_LINES_REMOVED)} or 0`)
   const value: ValueSpan[] = []
   if (seg.linesStyle === 'addedOnly') {
     value.push({ span: concreteSpan([lit('+'), v(addVar)], seg.addedStyle) })
@@ -377,11 +385,11 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
   const stateVar = `_${u}_state`
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.pr} ---`]
   lines.push(`if 'pr' in data:`)
-  lines.push(`    ${numVar} = (data.get('pr') or {}).get('number')`)
+  lines.push(`    ${numVar} = ${getExpr(PR_NUMBER)}`)
   lines.push(`    ${numVar} = '' if ${numVar} is None else str(${numVar})`)
   const value: ValueSpan[] = [{ span: concreteSpan([lit('#'), v(numVar)], seg.style) }]
   if (seg.showState) {
-    lines.push(`    ${stateVar} = (data.get('pr') or {}).get('review_state') or ''`)
+    lines.push(`    ${stateVar} = ${getExpr(PR_REVIEW_STATE)} or ''`)
     value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
     value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
@@ -453,7 +461,7 @@ export const pythonEmitter: Emitter = {
     lines.push(
       "NOW = int(os.environ['PMSL_NOW']) if os.environ.get('PMSL_NOW') else int(time.time())",
     )
-    lines.push("_dir_cwd = data.get('cwd') or (data.get('workspace') or {}).get('current_dir') or ''")
+    lines.push(`_dir_cwd = ${getExpr(DIR_CWD)} or ${getExpr(DIR_WORKSPACE)} or ''`)
     if (needsGit(config)) {
       lines.push('')
       lines.push('def _git_branch(cwd):')
