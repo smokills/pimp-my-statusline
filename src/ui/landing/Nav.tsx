@@ -19,6 +19,10 @@ export function Nav(): JSX.Element {
             Pimp My <span className="accent">Statusline</span>
           </span>
         </a>
+        {/* Outside the home link so screen readers announce it as its own thing. */}
+        <span className="beta-badge" title="still in beta — expect rough edges">
+          beta
+        </span>
 
         <nav className="nav-links" aria-label="Primary">
           <a href="#features">Features</a>

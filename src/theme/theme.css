@@ -742,6 +742,22 @@ details[open].disclosure > summary::before {
   letter-spacing: -0.01em;
   color: var(--fg);
 }
+
+/* "beta" patch next to the wordmark — amber so it reads as a caution note,
+   not another green action. */
+.beta-badge {
+  font-size: var(--fs-12);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--warn);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--r-pill);
+  padding: 4px 8px;
+  margin-left: calc(var(--sp-2) * -1); /* tuck closer to the wordmark */
+}
 .wordmark .mark {
   display: inline-flex;
   align-items: center;
@@ -1810,6 +1826,18 @@ details[open].disclosure > summary::before {
   }
   .hero-ctas .btn {
     flex: 1 1 100%;
+  }
+
+  /* Compact beta patch so the brand + actions fit one nav row. */
+  .beta-badge {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 3px 6px;
+  }
+  /* At phone widths the GitHub icon doesn't fit next to brand + beta + Build;
+     GitHub stays reachable from the hero CTA and the footer. */
+  .nav-mobile .icon-btn {
+    display: none;
   }
 
   /* Builder mobile: hide library/canvas behind tabs, keep preview sticky. */
