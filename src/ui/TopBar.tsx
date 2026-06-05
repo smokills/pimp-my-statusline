@@ -5,7 +5,7 @@ import { useConfigStore } from '../store/configStore'
 
 function Wordmark(): JSX.Element {
   return (
-    <div className="wordmark" style={{ fontSize: 'var(--fs-20)', display: 'flex', alignItems: 'center' }}>
+    <div className="wordmark topbar-wordmark" style={{ display: 'flex', alignItems: 'center' }}>
       <span aria-hidden="true" style={{ color: 'var(--phosphor-dim)', marginRight: 8 }}>
         ▌
       </span>
@@ -53,10 +53,15 @@ export function TopBar({
       >
         FX {fx ? 'ON' : 'OFF'}
       </button>
-      <button type="button" className="btn-bracket" onClick={onImport}>
+      <button type="button" className="btn-bracket mobile-only-hide" onClick={onImport}>
         IMPORT
       </button>
-      <button type="button" className="btn-bracket" data-variant="primary" onClick={onExport}>
+      <button
+        type="button"
+        className="btn-bracket mobile-only-hide"
+        data-variant="primary"
+        onClick={onExport}
+      >
         EXPORT
       </button>
     </header>

@@ -407,6 +407,15 @@ details[open] > summary::before {
   box-shadow: var(--glow-soft);
   outline: none;
 }
+/* Keyboard focus still gets the global 2px phosphor ring (plus the border/glow
+   above). Mouse focus keeps just the border/glow — outline:none only applies to
+   the non-:focus-visible case. */
+.text-input:focus-visible,
+.select-input:focus-visible,
+.textarea-input:focus-visible {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 2px;
+}
 .textarea-input {
   resize: vertical;
   line-height: 1.5;
@@ -759,6 +768,15 @@ details[open] > summary::before {
   backdrop-filter: blur(2px);
 }
 
+/* Export modal body: code view + install rail. Single column on mobile. */
+.export-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--sp-4);
+  min-height: 0;
+  flex: 1;
+}
+
 /* ===========================================================================
    Toasts
    =========================================================================== */
@@ -852,6 +870,9 @@ details[open] > summary::before {
   top: 0;
   z-index: 100;
 }
+.topbar-wordmark {
+  font-size: var(--fs-20);
+}
 
 .workbench {
   flex: 1;
@@ -863,12 +884,31 @@ details[open] > summary::before {
   min-height: 0;
 }
 
+/* Pin desktop columns explicitly so the DOM order (preview-first, for the mobile
+   sticky mini-preview) does not disturb the desktop three-zone layout. */
+.col-library {
+  grid-column: 1;
+}
+.col-canvas {
+  grid-column: 2;
+}
 .col-preview {
+  grid-column: 3;
+  grid-row: 1;
   position: sticky;
   top: calc(60px + var(--sp-4));
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+}
+
+/* Desktop: the mini-preview wrapper is transparent; the mock accordion is always
+   open and behaves like a normal stacked panel. */
+.mini-preview {
+  display: contents;
+}
+.mock-accordion-summary {
+  display: none;
 }
 
 /* Reserve space for the bottom inspector drawer so the lowest rows stay reachable. */
@@ -921,25 +961,94 @@ details[open] > summary::before {
 
 @media (max-width: 760px) {
   .workbench {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     padding: var(--sp-3);
     gap: var(--sp-3);
   }
+  /* Reset desktop grid pinning under flex. */
+  .col-library,
+  .col-canvas,
   .col-preview {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  /* Mini-preview docks at the top, just under the tab bar, and stays put while
+     the editor scrolls beneath it. The mock scrubber collapses into the
+     accordion directly below it. */
+  .col-preview {
+    order: -1;
+    position: static;
+    top: auto;
+    gap: var(--sp-2);
+  }
+  .mini-preview {
+    display: block;
     position: sticky;
-    top: 0;
+    top: 48px;
     z-index: 50;
+    background: var(--bg);
+    padding-bottom: var(--sp-2);
+  }
+  /* Compact bezel on mobile — bezel + preview only, not the mock panel. */
+  .mini-preview .terminal-preview {
+    font-size: var(--fs-13);
+  }
+  .mock-accordion {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: var(--sp-2);
+  }
+  .mock-accordion-summary {
+    display: block;
+    cursor: pointer;
+    padding: var(--sp-2);
+    list-style: none;
+  }
+  .mock-accordion-summary::-webkit-details-marker {
+    display: none;
+  }
+  .mock-accordion-summary::before {
+    content: '▸ ';
+    color: var(--phosphor-dim);
+  }
+  .mock-accordion[open] > .mock-accordion-summary::before {
+    content: '▾ ';
   }
   .mobile-tabs {
     display: flex;
+    flex-wrap: wrap;
     position: sticky;
     top: 0;
     z-index: 60;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
+  .mobile-tab {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    border: none;
+    border-radius: 0;
+    clip-path: none;
+    padding-left: var(--sp-1);
+    padding-right: var(--sp-1);
+    font-size: var(--fs-12);
+    letter-spacing: 0.02em;
+  }
   .mobile-only-hide {
     display: none !important;
+  }
+
+  /* Top bar shrinks gracefully: smaller wordmark, tighter padding, the FX
+     toggle stays (IMPORT/EXPORT move into the tab bar). */
+  .topbar {
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+  }
+  .topbar-wordmark {
+    font-size: var(--fs-14);
+    letter-spacing: 0.08em;
   }
 
   /* ≥44px touch targets */
@@ -963,6 +1072,14 @@ details[open] > summary::before {
   .color-cell {
     width: 26px;
     height: 26px;
+  }
+
+  /* Export modal stacks: code view first, install rail below. */
+  .export-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal-backdrop {
+    padding: var(--sp-2);
   }
 }
 

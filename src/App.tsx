@@ -16,7 +16,7 @@ import { ExportModal } from './ui/ExportModal'
 import { ImportModal } from './ui/ImportModal'
 import { useConfigStore, onRehydrateWarning } from './store/configStore'
 
-type MobileTab = 'build' | 'style' | 'pet' | 'export'
+type MobileTab = 'build' | 'style' | 'pet' | 'import' | 'export'
 
 function Workbench(): JSX.Element {
   const { fx, toggleFx } = useFx()
@@ -25,6 +25,11 @@ function Workbench(): JSX.Element {
   const [showImport, setShowImport] = useState(false)
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null)
   const [mobileTab, setMobileTab] = useState<MobileTab>('build')
+  // The mock scrubber is an accordion: open on desktop, collapsed on mobile so
+  // the editor stays reachable directly under the sticky mini-preview.
+  const [mockOpen] = useState<boolean>(
+    () => typeof matchMedia === 'undefined' || !matchMedia('(max-width: 760px)').matches,
+  )
 
   const firstRowId = useConfigStore((s) => s.config.rows[0]?.id ?? null)
   const openDrawer = useConfigStore((s) => s.openDrawer)
@@ -66,16 +71,24 @@ function Workbench(): JSX.Element {
 
       {/* Mobile segmented tabs */}
       <nav className="mobile-tabs" aria-label="sections">
-        {(['build', 'style', 'pet', 'export'] as MobileTab[]).map((t) => (
+        {(['build', 'style', 'pet', 'import', 'export'] as MobileTab[]).map((t) => (
           <button
             key={t}
             type="button"
-            className="btn-bracket"
-            style={{ flex: 1, justifyContent: 'center', border: 'none', borderRadius: 0 }}
+            className="btn-bracket mobile-tab"
             aria-pressed={mobileTab === t}
             onClick={() => {
+              if (t === 'export') {
+                setMobileTab('build')
+                setShowExport(true)
+                return
+              }
+              if (t === 'import') {
+                setMobileTab('build')
+                setShowImport(true)
+                return
+              }
               setMobileTab(t)
-              if (t === 'export') setShowExport(true)
             }}
           >
             {t.toUpperCase()}
@@ -83,20 +96,25 @@ function Workbench(): JSX.Element {
         ))}
       </nav>
 
-      <main className="workbench" data-drawer={drawerOpen}>
-        <div className={mobileTab === 'build' ? '' : 'mobile-only-hide'}>
+      <main className="workbench" data-drawer={drawerOpen} data-tab={mobileTab}>
+        {/* Mini-preview: sticky at top on mobile (order:-1), in the right column
+            on desktop. The mock scrubber lives below it as an accordion. */}
+        <div className="col-preview">
+          <div className="mini-preview">
+            <PreviewBezel />
+          </div>
+          <details className="mock-accordion" open={mockOpen}>
+            <summary className="label mock-accordion-summary">mock session</summary>
+            <MockDataPanel />
+          </details>
+        </div>
+
+        <div className={`col-library ${mobileTab === 'build' ? '' : 'mobile-only-hide'}`}>
           <ElementLibrary focusedRowId={effectiveFocusRow} />
         </div>
 
-        <div className={mobileTab === 'build' ? '' : 'mobile-only-hide'}>
+        <div className={`col-canvas ${mobileTab === 'build' ? '' : 'mobile-only-hide'}`}>
           <RowCanvas focusedRowId={effectiveFocusRow} onFocusRow={setFocusedRowId} />
-        </div>
-
-        <div className="col-preview">
-          <PreviewBezel />
-          <div className={mobileTab === 'build' ? '' : 'mobile-only-hide'}>
-            <MockDataPanel />
-          </div>
         </div>
       </main>
 

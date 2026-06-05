@@ -127,15 +127,7 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
           // {dependencyNote(lang)}
         </span>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) 340px',
-            gap: 16,
-            minHeight: 0,
-            flex: 1,
-          }}
-        >
+        <div className="export-grid">
           {/* Code */}
           <div className="stack" style={{ minHeight: 0 }}>
             <div className="well" style={{ minHeight: 0, maxHeight: '52vh', overflow: 'hidden' }}>

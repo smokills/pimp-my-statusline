@@ -7,6 +7,7 @@ import { useConfigStore, type DrawerTab } from '../store/configStore'
 import { ElementInspector } from './ElementInspector'
 import { PetTab } from './PetTab'
 import { DisplayTab } from './DisplayTab'
+import { PlacedSegmentPicker } from './PlacedSegmentPicker'
 
 const TABS: { value: DrawerTab; label: string }[] = [
   { value: 'element', label: 'ELEMENT' },
@@ -129,12 +130,7 @@ export function InspectorDrawer({
           </button>
         </div>
 
-        {tab === 'element' &&
-          (seg ? (
-            <ElementInspector seg={seg} />
-          ) : (
-            <span className="term-comment">// select an element on the canvas to edit it</span>
-          ))}
+        {tab === 'element' && (seg ? <ElementInspector seg={seg} /> : <PlacedSegmentPicker />)}
         {tab === 'pet' && <PetTab />}
         {tab === 'display' && <DisplayTab fx={fx} onToggleFx={onToggleFx} />}
     </div>
