@@ -123,7 +123,6 @@ export function defaultConfig(): StatuslineConfig {
       thresholds: { ...DEFAULT_PET_THRESHOLDS },
     },
     global: {
-      emoji: false,
       defaultThresholds: defaultThresholdStops(),
     },
   }

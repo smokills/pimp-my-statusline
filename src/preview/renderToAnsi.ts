@@ -81,12 +81,11 @@ function serializeRender(render: SegmentRender): string {
  * joiner), then join: the join string before each kept segment after the first
  * is `seg.joinBefore ?? row.joiner`.
  */
-function renderRow(row: Row, config: StatuslineConfig, mock: MockData): string {
-  const ctx = { emoji: config.global.emoji }
+function renderRow(row: Row, mock: MockData): string {
   const kept: { seg: (typeof row.segments)[number]; ansi: string }[] = []
   for (const seg of row.segments) {
     if (!seg.enabled) continue
-    const render = evaluateSegment(seg, mock, ctx)
+    const render = evaluateSegment(seg, mock)
     if (render.spans.length === 0) continue // dropped: empty render
     kept.push({ seg, ansi: serializeRender(render) })
   }
@@ -106,7 +105,7 @@ function renderRow(row: Row, config: StatuslineConfig, mock: MockData): string {
  * line here keeps preview↔script parity simple.
  */
 export function renderRowsToAnsi(config: StatuslineConfig, mock: MockData): string[] {
-  return config.rows.map((row) => renderRow(row, config, mock))
+  return config.rows.map((row) => renderRow(row, mock))
 }
 
 // ---------------------------------------------------------------------------

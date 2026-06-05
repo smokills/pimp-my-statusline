@@ -1,5 +1,5 @@
-// SettingsCard — STANDALONE global display options (master emoji toggle +
-// default thresholds for new metric elements), hosted in the builder sidebar
+// SettingsCard — STANDALONE global display options (default thresholds for
+// new metric elements), hosted in the builder sidebar
 // next to the PetCard. These are config-wide settings, deliberately OUTSIDE
 // the per-element inspector. Collapsed by default to keep the sidebar lean.
 
@@ -29,18 +29,6 @@ export function SettingsCard(): JSX.Element {
 
       {open && (
         <div className="stack">
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={global.emoji}
-              onChange={(e) => updateGlobal({ emoji: e.target.checked })}
-            />
-            <span className="box" />
-            <span>emoji (master switch)</span>
-          </label>
-          <span className="comment">ANDs with each element's own emoji setting</span>
-
-          <hr className="divider" />
           <span className="label">default thresholds (for new metric elements)</span>
           <div className="well card-pad">
             <Color256Picker

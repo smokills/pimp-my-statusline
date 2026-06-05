@@ -203,7 +203,6 @@ export interface PetConfig {
 // ---------------------------------------------------------------------------
 
 export interface GlobalOptions {
-  emoji: boolean // master emoji on/off (ANDs with per-segment show)
   defaultThresholds: ThresholdStop[] // applied to new metric segments
 }
 
@@ -234,7 +233,3 @@ export interface SegmentRender {
   spans: { text: string; style?: TextStyle }[]
 }
 
-/** Context passed to evaluate() that is not part of the persisted config. */
-export interface RenderCtx {
-  emoji: boolean
-}

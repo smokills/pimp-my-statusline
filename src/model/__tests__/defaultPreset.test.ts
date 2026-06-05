@@ -64,8 +64,7 @@ describe('defaultConfig shape', () => {
     })
   })
 
-  it('pet disabled and emoji off', () => {
+  it('pet disabled', () => {
     expect(cfg.pet.enabled).toBe(false)
-    expect(cfg.global.emoji).toBe(false)
   })
 })

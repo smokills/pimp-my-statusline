@@ -21,7 +21,6 @@ import type {
   StaticTextSegment,
   TextStyle,
   ThresholdStop,
-  RenderCtx,
   SegmentRender,
 } from './types'
 import type { MockData } from './mock'
@@ -53,7 +52,7 @@ export interface SegmentDef {
   emojiDefault?: string
   defaults: () => Omit<Segment, 'id'>
   helpers: HelperId[]
-  evaluate(seg: Segment, mock: MockData, ctx: RenderCtx): SegmentRender
+  evaluate(seg: Segment, mock: MockData): SegmentRender
 }
 
 // INVARIANT: SEGMENTS is keyed by SegmentType, and SEGMENTS[t].type === t for
@@ -77,12 +76,11 @@ function span(text: string, style?: TextStyle) {
  *  Returns empty if `valueSpans` is empty (so absence cleanly drops the segment). */
 function decorate(
   seg: Segment,
-  ctx: RenderCtx,
   valueSpans: SegmentRender['spans'],
 ): SegmentRender {
   if (valueSpans.length === 0) return EMPTY
   const spans: SegmentRender['spans'] = []
-  if (ctx.emoji && seg.emoji?.show && seg.emoji.glyph) {
+  if (seg.emoji?.show && seg.emoji.glyph) {
     spans.push(span(seg.emoji.glyph + ' '))
   }
   if (seg.label?.show && seg.label.text) {
@@ -159,7 +157,6 @@ function concreteStyle(
 function evaluateMetric(
   seg: MetricSegment,
   mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
   const src = metricSource(seg.type, mock)
   if (src === null) return EMPTY
@@ -192,7 +189,7 @@ function evaluateMetric(
     if (value.length > 0) value.push(span(' '))
     value.push(...pieces)
   }
-  return decorate(seg, ctx, value)
+  return decorate(seg, value)
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +199,6 @@ function evaluateMetric(
 function evaluateDirectory(
   seg: DirectorySegment,
   mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
   const cwd = mock.cwd ?? mock.workspace.current_dir ?? ''
   if (cwd === '') return EMPTY
@@ -215,13 +211,12 @@ function evaluateDirectory(
     if (cwd === home) display = '~'
     else if (cwd.startsWith(home + '/')) display = '~' + cwd.slice(home.length)
   }
-  return decorate(seg, ctx, [span(display, seg.style)])
+  return decorate(seg, [span(display, seg.style)])
 }
 
 function evaluateSimple(
   seg: SimpleSegment,
   mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
   let value: string | undefined
   switch (seg.type) {
@@ -269,13 +264,12 @@ function evaluateSimple(
     }
   }
   if (value === undefined || value === '') return EMPTY
-  return decorate(seg, ctx, [span(value, seg.style)])
+  return decorate(seg, [span(value, seg.style)])
 }
 
 function evaluateLines(
   seg: LinesSegment,
   mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
   if (mock.cost === undefined) return EMPTY
   const added = mock.cost.total_lines_added
@@ -290,13 +284,12 @@ function evaluateLines(
     value.push(span(' '))
     value.push(span(`-${removed}`, seg.removedStyle))
   }
-  return decorate(seg, ctx, value)
+  return decorate(seg, value)
 }
 
 function evaluatePr(
   seg: PrSegment,
   mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
   if (mock.pr === undefined) return EMPTY
   const value: SegmentRender['spans'] = [span(`#${mock.pr.number}`, seg.style)]
@@ -304,26 +297,24 @@ function evaluatePr(
     value.push(span(' '))
     value.push(span(mock.pr.review_state, seg.style))
   }
-  return decorate(seg, ctx, value)
+  return decorate(seg, value)
 }
 
 function evaluateSeparator(
   seg: SeparatorSegment,
   mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
   const count = seg.width === 'full' ? mock._columns : seg.width
   if (count <= 0 || seg.fill === '') return EMPTY
-  return decorate(seg, ctx, [span(seg.fill.repeat(count), seg.style)])
+  return decorate(seg, [span(seg.fill.repeat(count), seg.style)])
 }
 
 function evaluateStaticText(
   seg: StaticTextSegment,
   _mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
   if (seg.text === '') return EMPTY
-  return decorate(seg, ctx, [span(seg.text, seg.style)])
+  return decorate(seg, [span(seg.text, seg.style)])
 }
 
 // ---------------------------------------------------------------------------
@@ -388,8 +379,8 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: directoryDefaults,
     helpers: [],
-    evaluate: (seg, mock, ctx) =>
-      evaluateDirectory(seg as DirectorySegment, mock, ctx),
+    evaluate: (seg, mock) =>
+      evaluateDirectory(seg as DirectorySegment, mock),
   },
   gitBranch: {
     type: 'gitBranch',
@@ -398,7 +389,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('gitBranch'),
     helpers: ['gitBranch'],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   model: {
     type: 'model',
@@ -407,7 +398,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('model'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   effort: {
     type: 'effort',
@@ -416,7 +407,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('effort'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   context: {
     type: 'context',
@@ -425,7 +416,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: true,
     defaults: () => metricDefaults('context', 'Context', ['percent']),
     helpers: ['colorPct', 'bar'],
-    evaluate: (seg, mock, ctx) => evaluateMetric(seg as MetricSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateMetric(seg as MetricSegment, mock),
   },
   session: {
     type: 'session',
@@ -438,7 +429,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     defaults: () =>
       metricDefaults('session', 'Session', ['bar', 'percent', 'timer']),
     helpers: ['colorPct', 'bar', 'timeUntil'],
-    evaluate: (seg, mock, ctx) => evaluateMetric(seg as MetricSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateMetric(seg as MetricSegment, mock),
   },
   week: {
     type: 'week',
@@ -450,7 +441,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: true,
     defaults: () => metricDefaults('week', 'Week', ['bar', 'percent']),
     helpers: ['colorPct', 'bar', 'timeUntil'],
-    evaluate: (seg, mock, ctx) => evaluateMetric(seg as MetricSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateMetric(seg as MetricSegment, mock),
   },
   cost: {
     type: 'cost',
@@ -459,7 +450,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('cost'),
     helpers: ['fmtCost'],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   duration: {
     type: 'duration',
@@ -468,7 +459,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('duration'),
     helpers: ['fmtDuration'],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   lines: {
     type: 'lines',
@@ -477,7 +468,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: linesDefaults,
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateLines(seg as LinesSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateLines(seg as LinesSegment, mock),
   },
   outputStyle: {
     type: 'outputStyle',
@@ -486,7 +477,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('outputStyle'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   vimMode: {
     type: 'vimMode',
@@ -495,7 +486,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('vimMode'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   sessionName: {
     type: 'sessionName',
@@ -504,7 +495,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('sessionName'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   agent: {
     type: 'agent',
@@ -513,7 +504,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('agent'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   pr: {
     type: 'pr',
@@ -522,7 +513,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: prDefaults,
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluatePr(seg as PrSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluatePr(seg as PrSegment, mock),
   },
   thinking: {
     type: 'thinking',
@@ -531,7 +522,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('thinking'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   version: {
     type: 'version',
@@ -540,7 +531,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('version'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   worktree: {
     type: 'worktree',
@@ -549,7 +540,7 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: () => simpleDefaults('worktree'),
     helpers: [],
-    evaluate: (seg, mock, ctx) => evaluateSimple(seg as SimpleSegment, mock, ctx),
+    evaluate: (seg, mock) => evaluateSimple(seg as SimpleSegment, mock),
   },
   separator: {
     type: 'separator',
@@ -558,8 +549,8 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: separatorDefaults,
     helpers: ['truncCols'],
-    evaluate: (seg, mock, ctx) =>
-      evaluateSeparator(seg as SeparatorSegment, mock, ctx),
+    evaluate: (seg, mock) =>
+      evaluateSeparator(seg as SeparatorSegment, mock),
   },
   staticText: {
     type: 'staticText',
@@ -568,8 +559,8 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
     metric: false,
     defaults: staticTextDefaults,
     helpers: [],
-    evaluate: (seg, mock, ctx) =>
-      evaluateStaticText(seg as StaticTextSegment, mock, ctx),
+    evaluate: (seg, mock) =>
+      evaluateStaticText(seg as StaticTextSegment, mock),
   },
 }
 
@@ -577,7 +568,6 @@ export const SEGMENTS: Record<SegmentType, SegmentDef> = {
 export function evaluateSegment(
   seg: Segment,
   mock: MockData,
-  ctx: RenderCtx,
 ): SegmentRender {
-  return SEGMENTS[seg.type].evaluate(seg, mock, ctx)
+  return SEGMENTS[seg.type].evaluate(seg, mock)
 }

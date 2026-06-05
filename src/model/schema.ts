@@ -157,7 +157,6 @@ const petConfig = z.object({
 })
 
 const globalOptions = z.object({
-  emoji: z.boolean(),
   defaultThresholds: z.array(thresholdStop),
 })
 

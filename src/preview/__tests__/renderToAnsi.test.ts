@@ -124,7 +124,7 @@ describe('absence — fresh / noRateLimits', () => {
         },
       ],
       pet: defaultConfig().pet,
-      global: { emoji: false, defaultThresholds: [] },
+      global: { defaultThresholds: [] },
     }
     const lines = renderRowsToAnsi(cfg, fresh())
     expect(lines).toHaveLength(2)
@@ -146,7 +146,7 @@ describe('plain span serialization', () => {
         { id: 'r', segments: [{ id: 'm', type: 'model', enabled: true }], joiner: '  ' },
       ],
       pet: defaultConfig().pet,
-      global: { emoji: false, defaultThresholds: [] },
+      global: { defaultThresholds: [] },
     }
     const line = renderRowsToAnsi(cfg, typical())[0]
     expect(line).toBe('Opus')

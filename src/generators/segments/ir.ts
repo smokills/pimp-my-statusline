@@ -20,15 +20,14 @@ export interface ValueSpan {
 }
 
 /** Decorate value spans with emoji/label/prefix/suffix, mirroring
- *  segments.ts decorate(). Returns the full ordered span list. Emoji honors the
- *  GLOBAL emoji flag (baked at generate time) AND per-segment show. */
+ *  segments.ts decorate(). Returns the full ordered span list. Emoji is a
+ *  purely per-segment setting (seg.emoji.show). */
 export function decorate(
   seg: Segment,
-  globalEmoji: boolean,
   valueSpans: ValueSpan[],
 ): ValueSpan[] {
   const out: ValueSpan[] = []
-  if (globalEmoji && seg.emoji?.show && seg.emoji.glyph) {
+  if (seg.emoji?.show && seg.emoji.glyph) {
     out.push({ span: concreteSpan([lit(seg.emoji.glyph + ' ')], undefined) })
   }
   if (seg.label?.show && seg.label.text) {

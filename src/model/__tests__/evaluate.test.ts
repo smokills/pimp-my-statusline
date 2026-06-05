@@ -4,17 +4,14 @@ import { buildMock } from '../mock'
 import type {
   DirectorySegment,
   MetricSegment,
-  RenderCtx,
   Segment,
   SeparatorSegment,
   SimpleSegment,
 } from '../types'
 
-const ctx: RenderCtx = { emoji: false }
-
 /** Concatenate all span texts of a render (for plain-text assertions). */
 function text(seg: Segment, mock = buildMock()): string {
-  return evaluateSegment(seg, mock, ctx)
+  return evaluateSegment(seg, mock)
     .spans.map((s) => s.text)
     .join('')
 }
@@ -29,7 +26,7 @@ describe('model / effort absence', () => {
     )
   })
   it('effort dropped when absent', () => {
-    expect(evaluateSegment(effort, buildMock(), ctx).spans).toEqual([])
+    expect(evaluateSegment(effort, buildMock()).spans).toEqual([])
   })
   it('effort rendered when present', () => {
     expect(text(effort, buildMock({ effort: { level: 'high' } }))).toBe('high')
@@ -43,10 +40,10 @@ describe('metric absence vs null', () => {
   const contextSeg: MetricSegment = { ...context, id: 'c' }
 
   it('rate_limits absent → session dropped', () => {
-    expect(evaluateSegment(sessionSeg, buildMock(), ctx).spans).toEqual([])
+    expect(evaluateSegment(sessionSeg, buildMock()).spans).toEqual([])
   })
   it('context_window absent → context dropped', () => {
-    expect(evaluateSegment(contextSeg, buildMock(), ctx).spans).toEqual([])
+    expect(evaluateSegment(contextSeg, buildMock()).spans).toEqual([])
   })
   it('context present with null used_percentage → 0%', () => {
     const mock = buildMock({
@@ -189,7 +186,7 @@ describe('cost / duration / lines / pr / thinking', () => {
   })
   it('cost dropped when cost absent', () => {
     expect(
-      evaluateSegment({ id: 'c', type: 'cost', enabled: true }, buildMock(), ctx)
+      evaluateSegment({ id: 'c', type: 'cost', enabled: true }, buildMock())
         .spans,
     ).toEqual([])
   })
@@ -209,7 +206,6 @@ describe('cost / duration / lines / pr / thinking', () => {
       evaluateSegment(
         { id: 't', type: 'thinking', enabled: true },
         buildMock({ thinking: { enabled: false } }),
-        ctx,
       ).spans,
     ).toEqual([])
   })
@@ -225,16 +221,20 @@ describe('label and emoji decoration', () => {
   }
   const mock = buildMock({ model: { id: 'x', display_name: 'Opus' } })
 
-  it('label prepended when shown; emoji gated by ctx.emoji', () => {
-    expect(text(seg, mock)).toBe('Model Opus') // ctx.emoji false → no emoji
-    const withEmoji = evaluateSegment(seg, mock, { emoji: true })
-      .spans.map((s) => s.text)
-      .join('')
-    expect(withEmoji).toBe('🤖 Model Opus')
+  it('label and emoji prepended when shown (emoji is purely per-segment)', () => {
+    expect(text(seg, mock)).toBe('🤖 Model Opus')
+    const noEmoji: SimpleSegment = { ...seg, emoji: { glyph: '🤖', show: false } }
+    expect(text(noEmoji, mock)).toBe('Model Opus')
   })
 
   it('prefix/suffix wrap the value', () => {
-    const s: SimpleSegment = { ...seg, label: undefined, prefix: '[', suffix: ']' }
+    const s: SimpleSegment = {
+      ...seg,
+      label: undefined,
+      emoji: undefined,
+      prefix: '[',
+      suffix: ']',
+    }
     expect(text(s, mock)).toBe('[Opus]')
   })
 })
@@ -270,7 +270,7 @@ describe('threshold colors resolved to concrete colors by evaluate()', () => {
 
   it('spans never carry a threshold ColorSpec', () => {
     for (const pct of [5, 75, 95]) {
-      for (const s of evaluateSegment(seg, mockAt(pct), ctx).spans) {
+      for (const s of evaluateSegment(seg, mockAt(pct)).spans) {
         expect(s.style?.color?.kind).not.toBe('threshold')
       }
     }
@@ -283,7 +283,7 @@ describe('threshold colors resolved to concrete colors by evaluate()', () => {
     [90, 31],
     [95, 31],
   ])('pct %i resolves to ansi16 %i on bar and percent spans', (pct, code) => {
-    const spans = evaluateSegment(seg, mockAt(pct), ctx).spans
+    const spans = evaluateSegment(seg, mockAt(pct)).spans
     const styled = spans.filter((s) => s.style?.color)
     expect(styled.length).toBeGreaterThanOrEqual(2) // bar + percent
     for (const s of styled) {

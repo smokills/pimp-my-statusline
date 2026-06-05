@@ -123,7 +123,7 @@ describe('helper pruning (directory + model only)', () => {
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
-      global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+      global: { defaultThresholds: defaultThresholdStops() },
     }
   }
   for (const lang of LANGUAGES) {
@@ -230,7 +230,7 @@ describe('pet width invariance across pcts', () => {
         gap: 2,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
-      global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+      global: { defaultThresholds: defaultThresholdStops() },
     }
   }
 
@@ -280,7 +280,7 @@ function singleRowConfig(
       gap: 1,
       thresholds: { ...DEFAULT_PET_THRESHOLDS },
     },
-    global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+    global: { defaultThresholds: defaultThresholdStops() },
   }
 }
 
@@ -351,7 +351,7 @@ describe('regression', () => {
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
-      global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+      global: { defaultThresholds: defaultThresholdStops() },
     }
     const paths = writeScripts(cfg)
     for (const lang of LANGUAGES) {
@@ -395,7 +395,7 @@ describe('regression', () => {
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
-      global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+      global: { defaultThresholds: defaultThresholdStops() },
     }
     const paths = writeScripts(cfg)
     for (const lang of LANGUAGES) {
@@ -429,7 +429,7 @@ describe('cost formatting parity (realistic values)', () => {
         gap: 1,
         thresholds: { ...DEFAULT_PET_THRESHOLDS },
       },
-      global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+      global: { defaultThresholds: defaultThresholdStops() },
     }
   }
   const paths = writeScripts(costConfig())

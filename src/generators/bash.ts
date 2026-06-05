@@ -298,20 +298,19 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const u = ctx.uid
   const tmp = `_${u}`
-  const g = ctx.config.global.emoji
   lines.push(`# --- ${SEGMENT_COMMENT[seg.type]} ---`)
 
   if (seg.type === 'gitBranch') {
     lines.push(
       `${tmp}="\${PMSL_GIT_BRANCH-$(git -C "$EX_dir" branch --show-current 2>/dev/null)}"`,
     )
-    lines.push(...guardNonEmpty(tmp, out, seg, g, [v(tmp)], seg.style))
+    lines.push(...guardNonEmpty(tmp, out, seg, [v(tmp)], seg.style))
     return lines
   }
   if (seg.type === 'cost') {
     lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
     lines.push(`  ${tmp}=$(fmt_cost "$EX_${u}")`)
-    lines.push(...indent(assignDecorated(out, seg, g, [v(tmp)], seg.style)))
+    lines.push(...indent(assignDecorated(out, seg, [v(tmp)], seg.style)))
     lines.push('else')
     lines.push(`  ${out}=''`)
     lines.push('fi')
@@ -320,7 +319,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   if (seg.type === 'duration') {
     lines.push(`if [ "$EX_${u}_has" = "1" ]; then`)
     lines.push(`  ${tmp}=$(fmt_duration "$EX_${u}")`)
-    lines.push(...indent(assignDecorated(out, seg, g, [v(tmp)], seg.style)))
+    lines.push(...indent(assignDecorated(out, seg, [v(tmp)], seg.style)))
     lines.push('else')
     lines.push(`  ${out}=''`)
     lines.push('fi')
@@ -329,7 +328,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
 
   // String-valued simple segments (model/effort/.../thinking): EX_<uid> holds
   // the value (already "" when absent).
-  lines.push(...guardNonEmpty(`EX_${u}`, out, seg, g, [v(`EX_${u}`)], seg.style))
+  lines.push(...guardNonEmpty(`EX_${u}`, out, seg, [v(`EX_${u}`)], seg.style))
   return lines
 }
 
@@ -338,13 +337,12 @@ function guardNonEmpty(
   testVar: string,
   out: string,
   seg: Segment,
-  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
 ): string[] {
   const lines: string[] = []
   lines.push(`if [ -n "$${testVar}" ]; then`)
-  lines.push(...indent(assignDecorated(out, seg, g, pieces, style)))
+  lines.push(...indent(assignDecorated(out, seg, pieces, style)))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -355,12 +353,11 @@ function guardNonEmpty(
 function assignDecorated(
   out: string,
   seg: Segment,
-  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
 ): string[] {
   const valueSpans: ValueSpan[] = [{ span: concreteSpan(pieces, style) }]
-  return assignSpans(out, decorate(seg, g, valueSpans))
+  return assignSpans(out, decorate(seg, valueSpans))
 }
 
 function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
@@ -378,7 +375,7 @@ function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
     lines.push(`elif [ "\${${disp}#"$HOME"/}" != "$${disp}" ]; then ${disp}="~\${${disp}#"$HOME"}"; fi`)
   }
   lines.push(`if [ -n "$EX_dir" ]; then`)
-  lines.push(...indent(assignDecorated(out, seg, ctx.config.global.emoji, [v(disp)], seg.style)))
+  lines.push(...indent(assignDecorated(out, seg, [v(disp)], seg.style)))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -417,7 +414,7 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     timerVar: seg.parts.includes('timer') ? timerVar : null,
     colorFnName: ctx.colorFnName,
   })
-  lines.push(...indent(assignSpans(out, decorate(seg, ctx.config.global.emoji, valueSpans))))
+  lines.push(...indent(assignSpans(out, decorate(seg, valueSpans))))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -444,7 +441,7 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
     value.push({ span: concreteSpan([lit(' ')], undefined) })
     value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   }
-  lines.push(...indent(assignSpans(out, decorate(seg, ctx.config.global.emoji, value))))
+  lines.push(...indent(assignSpans(out, decorate(seg, value))))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -466,7 +463,7 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
     value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
     value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
-  lines.push(...indent(assignSpans(out, decorate(seg, ctx.config.global.emoji, value))))
+  lines.push(...indent(assignSpans(out, decorate(seg, value))))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -487,7 +484,7 @@ function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   }
   lines.push(`if [ "$${wVar}" -gt 0 ] && [ -n '${sq(seg.fill)}' ]; then`)
   lines.push(`  ${sepVar}=$(printf '${sq(seg.fill)}%.0s' $(seq 1 "$${wVar}"))`)
-  lines.push(...indent(assignDecorated(out, seg, ctx.config.global.emoji, [v(sepVar)], seg.style)))
+  lines.push(...indent(assignDecorated(out, seg, [v(sepVar)], seg.style)))
   lines.push('else')
   lines.push(`  ${out}=''`)
   lines.push('fi')
@@ -502,7 +499,7 @@ function emitStaticText(seg: StaticTextSegment, ctx: SegmentEmitCtx): string[] {
     lines.push(`${out}=''`)
     return lines
   }
-  const all = decorate(seg, ctx.config.global.emoji, [
+  const all = decorate(seg, [
     { span: concreteSpan([lit(seg.text)], seg.style) },
   ])
   lines.push(...assignSpans(out, all))

@@ -31,7 +31,7 @@ export function buildMaximalConfig(petEnabled: boolean): StatuslineConfig {
       gap: 1,
       thresholds: { ...DEFAULT_PET_THRESHOLDS },
     },
-    global: { emoji: false, defaultThresholds: defaultThresholdStops() },
+    global: { defaultThresholds: defaultThresholdStops() },
   }
 }
 

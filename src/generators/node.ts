@@ -96,21 +96,20 @@ const I = '  ' // base indent inside the handler
 function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const tmp = `_${ctx.uid}`
-  const g = ctx.config.global.emoji
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT[seg.type]} ---`]
 
   if (seg.type === 'gitBranch') {
     lines.push(
       `${I}const ${tmp} = ("PMSL_GIT_BRANCH" in process.env) ? process.env.PMSL_GIT_BRANCH : _gitBranchFn(_dirCwd);`,
     )
-    lines.push(...guard(tmp, out, seg, g, [v(tmp)], seg.style))
+    lines.push(...guard(tmp, out, seg, [v(tmp)], seg.style))
     return lines
   }
   if (seg.type === 'cost') {
     lines.push(`${I}let ${out} = "";`)
     lines.push(`${I}if (data.cost !== undefined) {`)
     lines.push(`${I}  const ${tmp} = fmt_cost(Number(${optChain(COST_TOTAL_USD)}) || 0);`)
-    lines.push(...assignDecorated(out, seg, g, [v(tmp)], seg.style, I + '  ', true))
+    lines.push(...assignDecorated(out, seg, [v(tmp)], seg.style, I + '  ', true))
     lines.push(`${I}}`)
     return lines
   }
@@ -118,7 +117,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
     lines.push(`${I}let ${out} = "";`)
     lines.push(`${I}if (data.cost !== undefined) {`)
     lines.push(`${I}  const ${tmp} = fmt_duration(Number(${optChain(COST_DURATION_MS)}) || 0);`)
-    lines.push(...assignDecorated(out, seg, g, [v(tmp)], seg.style, I + '  ', true))
+    lines.push(...assignDecorated(out, seg, [v(tmp)], seg.style, I + '  ', true))
     lines.push(`${I}}`)
     return lines
   }
@@ -128,7 +127,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   } else {
     lines.push(`${I}const ${tmp} = ${optChain(simplePath(seg.type))} || "";`)
   }
-  lines.push(...guard(tmp, out, seg, g, [v(tmp)], seg.style))
+  lines.push(...guard(tmp, out, seg, [v(tmp)], seg.style))
   return lines
 }
 
@@ -136,14 +135,13 @@ function guard(
   tmp: string,
   out: string,
   seg: Segment,
-  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
 ): string[] {
   const lines: string[] = []
   lines.push(`${I}let ${out} = "";`)
   lines.push(`${I}if (${tmp}) {`)
-  lines.push(...assignDecorated(out, seg, g, pieces, style, I + '  ', true))
+  lines.push(...assignDecorated(out, seg, pieces, style, I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }
@@ -153,14 +151,13 @@ function guard(
 function assignDecorated(
   out: string,
   seg: Segment,
-  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
   indent: string,
   reassign: boolean,
 ): string[] {
   const value: ValueSpan[] = [{ span: concreteSpan(pieces, style) }]
-  return assignSpansAt(out, decorate(seg, g, value), indent, reassign)
+  return assignSpansAt(out, decorate(seg, value), indent, reassign)
 }
 
 /** Like assignSpans but lets the caller choose let vs reassignment. */
@@ -199,7 +196,6 @@ function assignSpansAt(
 
 function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const dir = `_${u}_dir`
   const disp = `_${u}_disp`
@@ -215,14 +211,13 @@ function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
   }
   lines.push(`${I}let ${out} = "";`)
   lines.push(`${I}if (${dir}) {`)
-  lines.push(...assignDecorated(out, seg, g, [v(disp)], seg.style, I + '  ', true))
+  lines.push(...assignDecorated(out, seg, [v(disp)], seg.style, I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }
 
 function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT[seg.type]} ---`]
   const m = seg.type as MetricType
@@ -257,7 +252,7 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     timerVar: seg.parts.includes('timer') ? timerVar : null,
     colorFnName: ctx.colorFnName,
   })
-  lines.push(...assignSpansAt(out, decorate(seg, g, valueSpans), I + '  ', true))
+  lines.push(...assignSpansAt(out, decorate(seg, valueSpans), I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }
@@ -274,7 +269,6 @@ function nodeObjPresent(path: string[]): string {
 
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const addVar = `_${u}Add`
   const remVar = `_${u}Rem`
@@ -293,14 +287,13 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
     value.push({ span: concreteSpan([lit(' ')], undefined) })
     value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   }
-  lines.push(...assignSpansAt(out, decorate(seg, g, value), I + '  ', true))
+  lines.push(...assignSpansAt(out, decorate(seg, value), I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }
 
 function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const numVar = `_${u}Num`
   const stateVar = `_${u}State`
@@ -314,14 +307,13 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
     value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
     value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
-  lines.push(...assignSpansAt(out, decorate(seg, g, value), I + '  ', true))
+  lines.push(...assignSpansAt(out, decorate(seg, value), I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }
 
 function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const wVar = `_${u}W`
   const sepVar = `_${u}Sep`
@@ -334,21 +326,20 @@ function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   lines.push(`${I}let ${out} = "";`)
   lines.push(`${I}if (${wVar} > 0 && ${jsStr(seg.fill)}) {`)
   lines.push(`${I}  const ${sepVar} = ${jsStr(seg.fill)}.repeat(${wVar});`)
-  lines.push(...assignDecorated(out, seg, g, [v(sepVar)], seg.style, I + '  ', true))
+  lines.push(...assignDecorated(out, seg, [v(sepVar)], seg.style, I + '  ', true))
   lines.push(`${I}}`)
   return lines
 }
 
 function emitStaticText(seg: StaticTextSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const lines: string[] = [`${I}// --- ${SEGMENT_COMMENT.staticText} ---`]
   if (seg.text === '') {
     lines.push(`${I}let ${out} = "";`)
     return lines
   }
   lines.push(
-    ...assignSpansAt(out, decorate(seg, g, [{ span: concreteSpan([lit(seg.text)], seg.style) }]), I, false),
+    ...assignSpansAt(out, decorate(seg, [{ span: concreteSpan([lit(seg.text)], seg.style) }]), I, false),
   )
   return lines
 }

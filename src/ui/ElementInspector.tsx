@@ -343,7 +343,6 @@ function SimpleBody({ seg }: { seg: Segment }): JSX.Element {
 
 function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
   const update = useConfigStore((st) => st.updateSegment)
-  const emojiGlobal = useConfigStore((st) => st.config.global.emoji)
   const def = SEGMENTS[seg.type]
 
   return (
@@ -379,12 +378,11 @@ function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
         )}
       </div>
 
-      {/* Emoji */}
+      {/* Emoji — purely per-element: no global gate. */}
       <div className="stack-2">
         <label className="check">
           <input
             type="checkbox"
-            disabled={!emojiGlobal}
             checked={seg.emoji?.show ?? false}
             onChange={(e) =>
               update(seg.id, {
@@ -395,10 +393,7 @@ function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
           <span className="box" />
           <span>emoji</span>
         </label>
-        {!emojiGlobal && (
-          <span className="comment">global emoji is off — enable it in the Display tab</span>
-        )}
-        {emojiGlobal && seg.emoji?.show && (
+        {seg.emoji?.show && (
           <input
             className="text-input"
             style={{ width: 80 }}

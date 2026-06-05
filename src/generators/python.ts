@@ -146,20 +146,19 @@ function getExpr(path: string[]): string {
 function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
   const tmp = `_${ctx.uid}`
-  const g = ctx.config.global.emoji
   const lines: string[] = [`# --- ${SEGMENT_COMMENT[seg.type]} ---`]
 
   if (seg.type === 'gitBranch') {
     lines.push(
       `${tmp} = os.environ['PMSL_GIT_BRANCH'] if 'PMSL_GIT_BRANCH' in os.environ else _git_branch(_dir_cwd)`,
     )
-    lines.push(...guard(tmp, out, seg, g, [v(tmp)], seg.style))
+    lines.push(...guard(tmp, out, seg, [v(tmp)], seg.style))
     return lines
   }
   if (seg.type === 'cost') {
     lines.push(`if 'cost' in data:`)
     lines.push(`    ${tmp} = fmt_cost(float(${getExpr(COST_TOTAL_USD)} or 0))`)
-    lines.push(...assignSpansDecorated(out, seg, g, [v(tmp)], seg.style, '    '))
+    lines.push(...assignSpansDecorated(out, seg, [v(tmp)], seg.style, '    '))
     lines.push('else:')
     lines.push(`    ${out} = ''`)
     return lines
@@ -167,7 +166,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   if (seg.type === 'duration') {
     lines.push(`if 'cost' in data:`)
     lines.push(`    ${tmp} = fmt_duration(int(${getExpr(COST_DURATION_MS)} or 0))`)
-    lines.push(...assignSpansDecorated(out, seg, g, [v(tmp)], seg.style, '    '))
+    lines.push(...assignSpansDecorated(out, seg, [v(tmp)], seg.style, '    '))
     lines.push('else:')
     lines.push(`    ${out} = ''`)
     return lines
@@ -178,7 +177,7 @@ function emitSimple(seg: SimpleSegment, ctx: SegmentEmitCtx): string[] {
   } else {
     lines.push(`${tmp} = ${getExpr(simplePath(seg.type))} or ''`)
   }
-  lines.push(...guard(tmp, out, seg, g, [v(tmp)], seg.style))
+  lines.push(...guard(tmp, out, seg, [v(tmp)], seg.style))
   return lines
 }
 
@@ -186,13 +185,12 @@ function guard(
   tmp: string,
   out: string,
   seg: Segment,
-  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
 ): string[] {
   const lines: string[] = []
   lines.push(`if ${tmp}:`)
-  lines.push(...assignSpansDecorated(out, seg, g, pieces, style, '    '))
+  lines.push(...assignSpansDecorated(out, seg, pieces, style, '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines
@@ -201,18 +199,16 @@ function guard(
 function assignSpansDecorated(
   out: string,
   seg: Segment,
-  g: boolean,
   pieces: TextPiece[],
   style: TextStyle | undefined,
   indent: string,
 ): string[] {
   const value: ValueSpan[] = [{ span: concreteSpan(pieces, style) }]
-  return assignSpans(out, decorate(seg, g, value), indent)
+  return assignSpans(out, decorate(seg, value), indent)
 }
 
 function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const dir = `_${u}_dir`
   const disp = `_${u}_disp`
@@ -227,7 +223,7 @@ function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
     lines.push(`elif _home and ${disp}.startswith(_home + '/'): ${disp} = '~' + ${disp}[len(_home):]`)
   }
   lines.push(`if ${dir}:`)
-  lines.push(...assignSpansDecorated(out, seg, g, [v(disp)], seg.style, '    '))
+  lines.push(...assignSpansDecorated(out, seg, [v(disp)], seg.style, '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines
@@ -235,7 +231,6 @@ function emitDirectory(seg: DirectorySegment, ctx: SegmentEmitCtx): string[] {
 
 function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const lines: string[] = [`# --- ${SEGMENT_COMMENT[seg.type]} ---`]
   const m = seg.type as MetricType
@@ -267,7 +262,7 @@ function emitMetric(seg: MetricSegment, ctx: SegmentEmitCtx): string[] {
     timerVar: seg.parts.includes('timer') ? timerVar : null,
     colorFnName: ctx.colorFnName,
   })
-  lines.push(...assignSpans(out, decorate(seg, g, valueSpans), '    '))
+  lines.push(...assignSpans(out, decorate(seg, valueSpans), '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines
@@ -284,7 +279,6 @@ function pyObjPresent(path: string[]): string {
 
 function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const addVar = `_${u}_add`
   const remVar = `_${u}_rem`
@@ -302,7 +296,7 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
     value.push({ span: concreteSpan([lit(' ')], undefined) })
     value.push({ span: concreteSpan([lit('-'), v(remVar)], seg.removedStyle) })
   }
-  lines.push(...assignSpans(out, decorate(seg, g, value), '    '))
+  lines.push(...assignSpans(out, decorate(seg, value), '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines
@@ -310,7 +304,6 @@ function emitLines(seg: LinesSegment, ctx: SegmentEmitCtx): string[] {
 
 function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const numVar = `_${u}_num`
   const stateVar = `_${u}_state`
@@ -324,7 +317,7 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
     value.push({ span: concreteSpan([lit(' ')], undefined), whenVar: stateVar })
     value.push({ span: concreteSpan([v(stateVar)], seg.style), whenVar: stateVar })
   }
-  lines.push(...assignSpans(out, decorate(seg, g, value), '    '))
+  lines.push(...assignSpans(out, decorate(seg, value), '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines
@@ -332,7 +325,6 @@ function emitPr(seg: PrSegment, ctx: SegmentEmitCtx): string[] {
 
 function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const u = ctx.uid
   const wVar = `_${u}_w`
   const sepVar = `_${u}_sep`
@@ -344,7 +336,7 @@ function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
   }
   lines.push(`if ${wVar} > 0 and ${pyStr(seg.fill)}:`)
   lines.push(`    ${sepVar} = ${pyStr(seg.fill)} * ${wVar}`)
-  lines.push(...assignSpansDecorated(out, seg, g, [v(sepVar)], seg.style, '    '))
+  lines.push(...assignSpansDecorated(out, seg, [v(sepVar)], seg.style, '    '))
   lines.push('else:')
   lines.push(`    ${out} = ''`)
   return lines
@@ -352,14 +344,13 @@ function emitSeparator(seg: SeparatorSegment, ctx: SegmentEmitCtx): string[] {
 
 function emitStaticText(seg: StaticTextSegment, ctx: SegmentEmitCtx): string[] {
   const out = ctx.varName
-  const g = ctx.config.global.emoji
   const lines: string[] = [`# --- ${SEGMENT_COMMENT.staticText} ---`]
   if (seg.text === '') {
     lines.push(`${out} = ''`)
     return lines
   }
   lines.push(
-    ...assignSpans(out, decorate(seg, g, [{ span: concreteSpan([lit(seg.text)], seg.style) }]), ''),
+    ...assignSpans(out, decorate(seg, [{ span: concreteSpan([lit(seg.text)], seg.style) }]), ''),
   )
   return lines
 }
