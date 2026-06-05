@@ -1,0 +1,985 @@
+/* ===========================================================================
+   PHOSPHOR — the single visual source of truth for the statusline workbench.
+   A CRT phosphor-green instrument panel on GitHub-dark. Components consume
+   these custom properties + the component classes below; they keep inline
+   styles to a minimum. Border-radius is 0 EVERYWHERE (terminal discipline);
+   panels are chamfered with 45deg clip-path notches and wear HUD corner
+   brackets. Glow appears ONLY on active/focused elements.
+   =========================================================================== */
+
+:root {
+  /* --- Surfaces --- */
+  --bg: #0d1117;
+  --bg-deep: #090c10;
+  --surface: #161b22;
+  --surface-2: #182424;
+  --surface-3: #1c2430;
+  --border: #30363d;
+  --border-soft: #21262d;
+  --border-glow: #1f3d2a;
+
+  /* --- Phosphor foreground scale --- */
+  --phosphor: #00ff41;
+  --phosphor-dim: #008f11;
+  --phosphor-deep: #0a2912;
+  --fg: #e6edf3;
+  --fg-muted: #94a3b8;
+  --fg-faint: #5b6573;
+
+  /* --- Chrome threshold scale (UI ONLY — never the preview) --- */
+  --ok: #00ff41;
+  --warn: #ffb000;
+  --crit: #ff3333;
+
+  /* --- Glow primitives --- */
+  --glow-text: 0 0 6px rgba(0, 255, 65, 0.35);
+  --glow-box: 0 0 0 1px var(--phosphor), 0 0 12px rgba(0, 255, 65, 0.18);
+  --glow-soft: 0 0 10px rgba(0, 255, 65, 0.12);
+
+  /* --- Type scale (strict: 12 / 13 / 14 / 16 / 20) --- */
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-20: 1.25rem;
+
+  /* --- Spacing rhythm (4/8) --- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* --- Fonts --- */
+  --font-display: 'Syncopate', 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-prose: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* --- Chamfer notch size --- */
+  --chamfer: 10px;
+
+  /* --- Motion --- */
+  --t-fast: 120ms;
+  --t-med: 160ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  color-scheme: dark;
+}
+
+/* ===========================================================================
+   Base
+   =========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(0, 255, 65, 0.25);
+  color: var(--fg);
+}
+
+/* Scrollbars in the phosphor key. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 2px solid var(--bg);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--phosphor-dim);
+}
+
+/* ===========================================================================
+   Focus — every interactive element gets a visible 2px phosphor ring.
+   =========================================================================== */
+
+:where(button, a, input, select, textarea, [tabindex], [role='button'], [role='tab'], [role='radio'], [role='option']):focus-visible {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 2px;
+}
+
+/* ===========================================================================
+   Typography helpers
+   =========================================================================== */
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.section-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-12);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--phosphor-dim);
+  margin: 0;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.prose {
+  font-family: var(--font-prose);
+  font-size: var(--fs-14);
+  line-height: 1.55;
+  color: var(--fg);
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+.faint {
+  color: var(--fg-faint);
+}
+.term-comment {
+  color: var(--fg-faint);
+  font-style: italic;
+}
+
+/* Disclosure summaries (inspector color sections) — themed marker. */
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary::before {
+  content: '▸ ';
+  color: var(--phosphor-dim);
+}
+details[open] > summary::before {
+  content: '▾ ';
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.12em;
+  background: var(--phosphor);
+  box-shadow: var(--glow-soft);
+  vertical-align: -0.12em;
+  animation: blink 1.06s steps(1) infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ===========================================================================
+   HUD panel — chamfered, with corner brackets.
+   The chamfer is a layered background: a phosphor-tinted border layer behind a
+   surface layer, both clipped to the same 45deg-notched polygon. Brackets are
+   drawn as ::before/::after with corner gradients.
+   =========================================================================== */
+
+.hud-panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  clip-path: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+}
+
+/* Corner brackets — top-RIGHT + bottom-LEFT L-marks (the square, un-chamfered
+   corners; the chamfer notches the top-left and bottom-right). */
+.hud-panel::before,
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.hud-panel::before {
+  top: 6px;
+  right: 6px;
+  border-top: 2px solid var(--phosphor-dim);
+  border-right: 2px solid var(--phosphor-dim);
+}
+.hud-panel::after {
+  left: 6px;
+  bottom: 6px;
+  border-bottom: 2px solid var(--phosphor-dim);
+  border-left: 2px solid var(--phosphor-dim);
+}
+
+.hud-panel[data-active='true'] {
+  border-color: var(--border-glow);
+  box-shadow: var(--glow-soft);
+}
+.hud-panel[data-active='true']::before,
+.hud-panel[data-active='true']::after {
+  border-color: var(--phosphor);
+  opacity: 1;
+}
+
+.panel-pad {
+  padding: var(--sp-4);
+}
+
+/* Recessed well (inputs, empty rows, code interiors). */
+.well {
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+}
+
+/* ===========================================================================
+   Bracketed-verb buttons:  [ EXPORT ]
+   =========================================================================== */
+
+.btn-bracket {
+  --bb-fg: var(--fg);
+  --bb-edge: var(--border);
+  appearance: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bb-fg);
+  background: var(--surface-2);
+  border: 1px solid var(--bb-edge);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: 36px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.btn-bracket::before {
+  content: '[';
+  color: var(--phosphor-dim);
+}
+.btn-bracket::after {
+  content: ']';
+  color: var(--phosphor-dim);
+}
+.btn-bracket:hover:not(:disabled) {
+  color: var(--phosphor);
+  border-color: var(--phosphor-dim);
+  background: var(--phosphor-deep);
+}
+.btn-bracket:hover:not(:disabled)::before,
+.btn-bracket:hover:not(:disabled)::after {
+  color: var(--phosphor);
+}
+.btn-bracket:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn-bracket:disabled {
+  color: var(--fg-faint);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn-bracket[data-variant='primary'] {
+  --bb-fg: var(--phosphor);
+  --bb-edge: var(--phosphor-dim);
+  background: var(--phosphor-deep);
+  box-shadow: var(--glow-soft);
+}
+.btn-bracket[data-variant='primary']:hover:not(:disabled) {
+  box-shadow: var(--glow-box);
+}
+.btn-bracket[data-variant='danger']:hover:not(:disabled) {
+  --bb-fg: var(--crit);
+  border-color: var(--crit);
+  background: rgba(255, 51, 51, 0.08);
+}
+.btn-bracket[data-variant='danger']:hover:not(:disabled)::before,
+.btn-bracket[data-variant='danger']:hover:not(:disabled)::after {
+  color: var(--crit);
+}
+
+/* Plain icon button (no brackets) — used for ✕ / handles. */
+.btn-icon {
+  appearance: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  color: var(--fg-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.btn-icon:hover {
+  color: var(--phosphor);
+  background: var(--phosphor-deep);
+}
+.btn-icon[data-variant='danger']:hover {
+  color: var(--crit);
+  background: rgba(255, 51, 51, 0.1);
+}
+
+/* ===========================================================================
+   Form controls — sliders / checkbox / radio / text inputs in theme.
+   =========================================================================== */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.text-input,
+.select-input,
+.textarea-input {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  color: var(--fg);
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: 34px;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.text-input:focus,
+.select-input:focus,
+.textarea-input:focus {
+  border-color: var(--phosphor-dim);
+  box-shadow: var(--glow-soft);
+  outline: none;
+}
+.textarea-input {
+  resize: vertical;
+  line-height: 1.5;
+}
+.select-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--phosphor-dim) 50%),
+    linear-gradient(135deg, var(--phosphor-dim) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: var(--sp-6);
+}
+
+/* Range slider */
+.range-input {
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.range-input::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--border);
+  border: none;
+}
+.range-input::-moz-range-track {
+  height: 4px;
+  background: var(--border);
+}
+.range-input::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  background: var(--phosphor);
+  box-shadow: var(--glow-soft);
+  border: 1px solid var(--bg);
+  border-radius: 0;
+}
+.range-input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--phosphor);
+  box-shadow: var(--glow-soft);
+  border: 1px solid var(--bg);
+  border-radius: 0;
+}
+.range-input:focus-visible {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 4px;
+}
+
+/* Checkbox + radio — custom box with phosphor mark. */
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-13);
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+}
+.check input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.check .box {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--phosphor);
+  line-height: 1;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.check input:checked + .box {
+  border-color: var(--phosphor-dim);
+  box-shadow: var(--glow-soft);
+}
+.check input:checked + .box::after {
+  content: '×';
+  font-size: 14px;
+}
+.check.radio .box {
+  border-radius: 0;
+}
+.check.radio input:checked + .box::after {
+  content: '■';
+  font-size: 9px;
+}
+.check input:focus-visible + .box {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 2px;
+}
+.check input:disabled + .box {
+  opacity: 0.4;
+}
+.check input:disabled ~ * {
+  color: var(--fg-faint);
+}
+
+/* Segmented control (variant toggles, language tabs, etc.). */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+.segmented button {
+  appearance: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: 32px;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.segmented button:last-child {
+  border-right: none;
+}
+.segmented button:hover {
+  color: var(--phosphor);
+}
+.segmented button[aria-pressed='true'],
+.segmented button[aria-selected='true'] {
+  color: var(--phosphor);
+  background: var(--phosphor-deep);
+  text-shadow: var(--glow-text);
+}
+
+/* ===========================================================================
+   CRT bezel around the live preview.
+   =========================================================================== */
+
+.crt-bezel {
+  position: relative;
+  background: linear-gradient(160deg, #1b222b, #0f141b);
+  border: 1px solid var(--border);
+  padding: 14px 14px 18px;
+  clip-path: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 2px 12px rgba(0, 0, 0, 0.7);
+}
+.crt-screen {
+  position: relative;
+  background: var(--bg-deep);
+  border: 1px solid #05242a;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.85), inset 0 0 60px rgba(0, 50, 20, 0.12);
+  overflow: hidden;
+}
+.crt-led {
+  position: absolute;
+  right: 12px;
+  bottom: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-12);
+  letter-spacing: 0.12em;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+}
+.crt-led .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--phosphor);
+  box-shadow: 0 0 6px var(--phosphor), 0 0 2px #fff inset;
+}
+
+/* ===========================================================================
+   Scanline overlay — single static overlay, default OFF, toggled via FX.
+   =========================================================================== */
+
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    transparent 0 2px,
+    rgba(0, 0, 0, 0.22) 2px 3px
+  );
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+}
+
+/* ===========================================================================
+   Element chips (library + canvas)
+   =========================================================================== */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: 34px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+.chip:hover {
+  border-color: var(--phosphor-dim);
+}
+.chip[data-selected='true'] {
+  border-color: var(--phosphor);
+  box-shadow: var(--glow-box);
+}
+.chip[data-disabled='true'] {
+  color: var(--fg-faint);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.chip .swatch {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.chip .glyphs {
+  font-size: var(--fs-12);
+  color: var(--phosphor-dim);
+  letter-spacing: 0.04em;
+}
+
+.placed-tag {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--phosphor-dim);
+  text-transform: uppercase;
+}
+
+/* Drag overlay lift. */
+.chip[data-dragging='true'] {
+  border-color: var(--phosphor);
+  box-shadow: var(--glow-box);
+  transform: translateY(-2px);
+}
+
+/* ===========================================================================
+   Rows / canvas
+   =========================================================================== */
+
+.row-shell {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.row-shell[data-over='true'] {
+  border-color: var(--phosphor-dim);
+  box-shadow: var(--glow-soft);
+}
+.row-handle {
+  cursor: grab;
+  color: var(--fg-faint);
+  letter-spacing: -2px;
+  font-size: var(--fs-16);
+  padding: 0 var(--sp-1);
+  background: transparent;
+  border: none;
+}
+.row-handle:hover {
+  color: var(--phosphor);
+}
+.row-handle:active {
+  cursor: grabbing;
+}
+.empty-well {
+  border: 1px dashed var(--border);
+  color: var(--fg-faint);
+  font-style: italic;
+  font-size: var(--fs-13);
+  padding: var(--sp-3) var(--sp-4);
+  text-align: center;
+}
+
+/* ===========================================================================
+   Color picker
+   =========================================================================== */
+
+.color-cell {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: transform var(--t-fast) var(--ease);
+}
+.color-cell:hover,
+.color-cell[data-current='true'] {
+  outline: 2px solid var(--phosphor);
+  outline-offset: -1px;
+  z-index: 2;
+  transform: scale(1.15);
+}
+
+/* ===========================================================================
+   Drawer (inspector)
+   =========================================================================== */
+
+.drawer {
+  background: var(--surface);
+  border-top: 1px solid var(--border-glow);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5), 0 -1px 0 rgba(0, 255, 65, 0.18);
+}
+
+/* ===========================================================================
+   Modal
+   =========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  background: rgba(3, 6, 10, 0.78);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: var(--sp-6);
+  backdrop-filter: blur(2px);
+}
+
+/* ===========================================================================
+   Toasts
+   =========================================================================== */
+
+.toast-stack {
+  position: fixed;
+  right: var(--sp-5);
+  bottom: var(--sp-5);
+  z-index: 9500;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+.toast {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  color: var(--phosphor);
+  background: var(--bg-deep);
+  border: 1px solid var(--phosphor-dim);
+  box-shadow: var(--glow-soft);
+  padding: var(--sp-2) var(--sp-3);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  animation: toast-in var(--t-med) var(--ease);
+}
+.toast[data-tone='warn'] {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.toast[data-tone='crit'] {
+  color: var(--crit);
+  border-color: var(--crit);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ===========================================================================
+   Skip link + visually-hidden
+   =========================================================================== */
+
+.skip-link {
+  position: absolute;
+  left: var(--sp-2);
+  top: -48px;
+  z-index: 10000;
+  background: var(--phosphor-deep);
+  color: var(--phosphor);
+  border: 1px solid var(--phosphor);
+  padding: var(--sp-2) var(--sp-3);
+  font-family: var(--font-mono);
+  transition: top var(--t-fast) var(--ease);
+}
+.skip-link:focus {
+  top: var(--sp-2);
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===========================================================================
+   App layout
+   =========================================================================== */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.workbench {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr) 380px;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  align-items: start;
+  min-height: 0;
+}
+
+.col-preview {
+  position: sticky;
+  top: calc(60px + var(--sp-4));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Reserve space for the bottom inspector drawer so the lowest rows stay reachable. */
+.workbench[data-drawer='true'] {
+  padding-bottom: 48vh;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.row-flex {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  border: none;
+  margin: var(--sp-2) 0;
+}
+
+.scroll-y {
+  overflow-y: auto;
+}
+
+/* Mobile tab bar (hidden on desktop). */
+.mobile-tabs {
+  display: none;
+}
+
+/* ===========================================================================
+   Responsive — tabbed layout under 760px
+   =========================================================================== */
+
+@media (max-width: 760px) {
+  .workbench {
+    grid-template-columns: 1fr;
+    padding: var(--sp-3);
+    gap: var(--sp-3);
+  }
+  .col-preview {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .mobile-tabs {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-only-hide {
+    display: none !important;
+  }
+
+  /* ≥44px touch targets */
+  .btn-bracket,
+  .chip,
+  .check,
+  .segmented button {
+    min-height: 44px;
+  }
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .row-handle {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .color-cell {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* ===========================================================================
+   Reduced motion — kill cursor blink + all transitions.
+   =========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .cursor {
+    animation: none;
+    opacity: 1;
+  }
+}
