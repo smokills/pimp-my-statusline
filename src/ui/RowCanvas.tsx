@@ -202,16 +202,13 @@ export function RowCanvas({
         const idx = overRow.segments.findIndex((s) => s.id === overId)
         return { rowId: overRow.id, index: idx }
       }
-      // Over a row container (we tag the row's flex with data-row-id; dnd-kit
-      // reports the row sortable id when hovering empty space — strip prefix).
+      // Over a row container: the only row-level droppable is the row shell's
+      // sortable, registered under ROW_PREFIX + row.id. Drop at the row's end.
       if (overId.startsWith(ROW_PREFIX)) {
         const rowId = overId.slice(ROW_PREFIX.length)
         const r = rows.find((x) => x.id === rowId)
         if (r) return { rowId, index: r.segments.length }
       }
-      // Over a row id directly (empty row droppable registered as the row id).
-      const r = rows.find((x) => x.id === overId)
-      if (r) return { rowId: r.id, index: r.segments.length }
       return null
     },
     [rows],

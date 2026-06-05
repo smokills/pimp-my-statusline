@@ -33,7 +33,6 @@ function Workbench(): JSX.Element {
 
   const firstRowId = useConfigStore((s) => s.config.rows[0]?.id ?? null)
   const openDrawer = useConfigStore((s) => s.openDrawer)
-  const setDrawerTab = useConfigStore((s) => s.setDrawerTab)
   const drawerOpen = useConfigStore((s) => s.drawerOpen)
 
   // Surface the persist rehydrate-fallback as a toast.
@@ -44,16 +43,11 @@ function Workbench(): JSX.Element {
 
   const effectiveFocusRow = focusedRowId ?? firstRowId
 
-  // Mobile tab → open the right drawer tab.
+  // Mobile tab → open the drawer on the right tab (openDrawer sets drawerTab).
   useEffect(() => {
-    if (mobileTab === 'style') {
-      setDrawerTab('element')
-      openDrawer('element')
-    } else if (mobileTab === 'pet') {
-      setDrawerTab('pet')
-      openDrawer('pet')
-    }
-  }, [mobileTab, openDrawer, setDrawerTab])
+    if (mobileTab === 'style') openDrawer('element')
+    else if (mobileTab === 'pet') openDrawer('pet')
+  }, [mobileTab, openDrawer])
 
   return (
     <div className="app">

@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   createDebouncedStorage,
   onRehydrateWarning,
+  __resetRehydrateForTest,
   STORAGE_KEY,
 } from './configStore'
 import { defaultConfig } from '../model/presets/defaultPreset'
@@ -36,10 +37,11 @@ const g = globalThis as unknown as { localStorage?: Storage }
 
 beforeEach(() => {
   g.localStorage = new MemStorage() as unknown as Storage
+  __resetRehydrateForTest()
 })
 afterEach(() => {
   delete g.localStorage
-  onRehydrateWarning(() => {})
+  __resetRehydrateForTest()
 })
 
 describe('debounced storage — rehydrate gate', () => {
@@ -74,6 +76,27 @@ describe('debounced storage — rehydrate gate', () => {
     const s = createDebouncedStorage(0)
     g.localStorage!.setItem(STORAGE_KEY, '{not json')
     expect(s.getItem(STORAGE_KEY)).toBeNull()
+  })
+
+  it('buffers the warning when getItem runs BEFORE a listener registers (real ordering)', () => {
+    // Reproduce production order: persist calls getItem at import time, App
+    // registers onRehydrateWarning only after mount. The message must survive.
+    const s = createDebouncedStorage(0)
+    const bad = JSON.stringify({ state: { config: { version: 1, nope: true } }, version: 0 })
+    g.localStorage!.setItem(STORAGE_KEY, bad)
+
+    // getItem first — NO listener registered yet.
+    expect(s.getItem(STORAGE_KEY)).toBeNull()
+
+    // Listener registers afterwards — it receives the buffered warning.
+    const warn = vi.fn()
+    onRehydrateWarning(warn)
+    expect(warn).toHaveBeenCalledWith('saved config was incompatible — reset to default')
+
+    // Buffer is one-shot: a second registration gets nothing.
+    const warn2 = vi.fn()
+    onRehydrateWarning(warn2)
+    expect(warn2).not.toHaveBeenCalled()
   })
 
   it('debounces writes and flushes after the delay', async () => {

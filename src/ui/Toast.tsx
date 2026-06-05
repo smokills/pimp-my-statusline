@@ -6,6 +6,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
   type JSX,
@@ -35,13 +36,26 @@ export function useToast(): ToastApi {
 export function ToastProvider({ children }: { children: ReactNode }): JSX.Element {
   const [items, setItems] = useState<ToastItem[]>([])
   const nextId = useRef(0)
+  // Track pending dismiss timers so they can be cleared on unmount (no setState
+  // after unmount, no leaked timers).
+  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
 
   const toast = useCallback((message: string, tone: ToastTone = 'ok') => {
     const id = (nextId.current += 1)
     setItems((cur) => [...cur, { id, message, tone }])
-    setTimeout(() => {
+    const handle = setTimeout(() => {
+      timers.current.delete(handle)
       setItems((cur) => cur.filter((t) => t.id !== id))
     }, 2600)
+    timers.current.add(handle)
+  }, [])
+
+  useEffect(() => {
+    const pending = timers.current
+    return () => {
+      for (const handle of pending) clearTimeout(handle)
+      pending.clear()
+    }
   }, [])
 
   return (

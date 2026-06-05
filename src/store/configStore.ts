@@ -204,11 +204,35 @@ export function reorderRowsIn(
 export const STORAGE_KEY = 'pms:config:v1'
 
 /** Surfaced when a stored config fails the schema gate on rehydrate. The UI
- *  registers a listener to turn this into a toast. */
+ *  registers a listener to turn this into a toast.
+ *
+ *  Ordering hazard: zustand's persist with SYNCHRONOUS storage calls getItem at
+ *  module-import time — BEFORE App mounts and registers a listener. So we BUFFER
+ *  any warning emitted while no listener is registered, and flush it the moment
+ *  one registers. Without this the corrupt-config reset toast would be lost. */
 type RehydrateListener = (msg: string) => void
 let rehydrateListener: RehydrateListener | null = null
+let bufferedWarning: string | null = null
+
+function emitRehydrateWarning(msg: string): void {
+  if (rehydrateListener) rehydrateListener(msg)
+  else bufferedWarning = msg
+}
+
 export function onRehydrateWarning(fn: RehydrateListener): void {
   rehydrateListener = fn
+  if (bufferedWarning !== null) {
+    const msg = bufferedWarning
+    bufferedWarning = null
+    fn(msg)
+  }
+}
+
+/** Test-only: clear the listener + buffer so each test starts unregistered
+ *  (mirrors a fresh module load). Not used by app code. */
+export function __resetRehydrateForTest(): void {
+  rehydrateListener = null
+  bufferedWarning = null
 }
 
 interface PersistedShape {
@@ -245,8 +269,18 @@ export function createDebouncedStorage(delay = 250): PersistStorage<PersistedSha
     }
   }
 
+  // Flush the debounced write on any teardown signal. beforeunload alone is
+  // unreliable on mobile (iOS Safari / Android backgrounding), so we also flush
+  // on pagehide and when the tab is hidden — covering the cases where the last
+  // edit would otherwise be dropped.
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', flush)
+    window.addEventListener('pagehide', flush)
+  }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flush()
+    })
   }
 
   return {
@@ -265,8 +299,9 @@ export function createDebouncedStorage(delay = 250): PersistStorage<PersistedSha
       const cfg = parseConfig(env?.state?.config)
       if (cfg === null) {
         // Invalid persisted config — drop it so the store keeps its default,
-        // and surface a warning the UI can toast.
-        rehydrateListener?.('saved config was incompatible — reset to default')
+        // and surface a warning the UI can toast (buffered until a listener
+        // registers, since getItem runs before App mounts).
+        emitRehydrateWarning('saved config was incompatible — reset to default')
         return null
       }
       return { state: { config: cfg }, version: env.version }

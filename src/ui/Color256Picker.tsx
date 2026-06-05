@@ -5,7 +5,7 @@
 // Hover live-previews via onHover; click commits via onChange. Recents +
 // suggested + typed-index input round it out.
 
-import { useCallback, useEffect, useState, type JSX } from 'react'
+import { memo, useCallback, useEffect, useState, type JSX } from 'react'
 import type { ColorSpec, TextStyle, ThresholdStop } from '../model/types'
 import { XTERM256, ANSI16_TO_XTERM } from '../preview/xterm256'
 import {
@@ -21,15 +21,18 @@ const XTERM_TO_ANSI16: Record<number, number> = Object.fromEntries(
   Object.entries(ANSI16_TO_XTERM).map(([sgr, idx]) => [idx, Number(sgr)]),
 )
 
-function Cell({
+// Memoized so a single pick (which changes `currentIndex`) only re-renders the
+// two cells whose `selected` boolean actually flips — not all 256. The callbacks
+// passed in are useCallback-stable, so referential equality holds.
+const Cell = memo(function Cell({
   index,
-  current,
+  selected,
   onPick,
   onHover,
   onLeave,
 }: {
   index: number
-  current: number | null
+  selected: boolean
   onPick: (i: number) => void
   onHover: (i: number) => void
   onLeave: () => void
@@ -38,7 +41,7 @@ function Cell({
     <button
       type="button"
       className="color-cell"
-      data-current={current === index}
+      data-current={selected}
       style={{ background: XTERM256[index] }}
       title={`${index} · ${colorName(index)}`}
       aria-label={`color ${index}, ${colorName(index)}`}
@@ -49,7 +52,7 @@ function Cell({
       onBlur={onLeave}
     />
   )
-}
+})
 
 function Band({
   label,
@@ -72,17 +75,14 @@ function Band({
     <div className="stack-2">
       <span className="label">{label}</span>
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${cols}, 18px)`,
-          gap: 2,
-        }}
+        className="color-grid"
+        style={{ gridTemplateColumns: `repeat(${cols}, var(--cell-size))` }}
       >
         {indices.map((i) => (
           <Cell
             key={i}
             index={i}
-            current={current}
+            selected={current === i}
             onPick={onPick}
             onHover={onHover}
             onLeave={onLeave}
@@ -257,13 +257,14 @@ function PickerCore({
           {CUBE_BLOCKS.map((blk, i) => (
             <div
               key={i}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 18px)', gap: 2 }}
+              className="color-grid"
+              style={{ gridTemplateColumns: 'repeat(6, var(--cell-size))' }}
             >
               {blk.map((idx) => (
                 <Cell
                   key={idx}
                   index={idx}
-                  current={currentIndex}
+                  selected={currentIndex === idx}
                   onPick={commit}
                   onHover={hover}
                   onLeave={leave}
