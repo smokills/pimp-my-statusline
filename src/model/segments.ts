@@ -132,7 +132,9 @@ function metricSource(
   const bucket =
     type === 'session' ? mock.rate_limits?.five_hour : mock.rate_limits?.seven_day
   if (bucket === undefined) return null
-  return { pct: truncPct(bucket.used_percentage), resetsAt: bucket.resets_at }
+  // `?? null`: a malformed bucket with no resets_at must read as "no reset"
+  // (timer dropped), never as NaN reaching timeUntil.
+  return { pct: truncPct(bucket.used_percentage), resetsAt: bucket.resets_at ?? null }
 }
 
 /** Resolve a possibly-threshold style into a concrete color for `pct`.

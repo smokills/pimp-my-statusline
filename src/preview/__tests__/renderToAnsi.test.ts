@@ -227,6 +227,18 @@ describe('pet composition — cactus on default config', () => {
     for (const set of [low, mid, high]) {
       expect(set).toHaveLength(3)
     }
+
+    // THE hard constraint: the pet column never changes width across moods.
+    // Row content varies with the pct ("5%" vs "55%"), so total line width is
+    // NOT invariant — what must hold is that the content always starts at the
+    // same column: pet width (6) + gap (1) = 7 for every line of every mood.
+    for (const set of [low, mid, high]) {
+      for (const line of set) {
+        const plain = stripAnsiLocal(line)
+        expect(plain.length).toBeGreaterThanOrEqual(7)
+        expect(plain[6]).toBe(' ') // the gap column, always blank
+      }
+    }
   })
 
   it('right position pads rows to max width before appending pet', () => {

@@ -152,7 +152,15 @@ describe('cross-language execution parity', () => {
     },
     maximalPet: buildMaximalConfig(true),
   }
-  const mockNames = ['typical', 'fresh', 'noRateLimits', 'panic', 'peakNow', 'offPeak'] as const
+  const mockNames = [
+    'typical',
+    'fresh',
+    'noRateLimits',
+    'panic',
+    'peakNow',
+    'offPeak',
+    'narrow',
+  ] as const
 
   for (const [cname, cfg] of Object.entries(configs)) {
     const paths = writeScripts(cfg)
