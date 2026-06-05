@@ -65,7 +65,4 @@ src/generators/  config → readable bash / python / node scripts that
                  reproduce the preview byte-for-byte
 src/ui/          the landing page + builder workbench (React + zustand + dnd-kit)
 tests/golden/    committed .ansi snapshots (trailing whitespace matters!)
-docs/superpowers/specs/  design docs + adversarial reviews
 ```
-
-Design docs, including the full architecture and two adversarial design reviews, live in [`docs/superpowers/specs/`](docs/superpowers/specs/).
