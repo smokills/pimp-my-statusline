@@ -1,7 +1,7 @@
 // PlacedSegmentPicker — a compact, row-grouped, tappable list of placed segments
-// shown in the inspector's ELEMENT tab when nothing is selected. This is the
-// mobile selection path (the canvas is hidden on the STYLE tab), but it is
-// harmless and helpful on desktop too. Tapping a row's segment selects it.
+// shown in the sidebar (inside a "Elements" card) when nothing is selected. This
+// is the mobile selection path: the canvas is hidden on the STYLE tab, so this
+// list is how an element gets picked there. Tapping a row's segment selects it.
 
 import type { JSX } from 'react'
 import { useConfigStore } from '../store/configStore'

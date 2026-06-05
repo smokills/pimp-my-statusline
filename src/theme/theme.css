@@ -87,6 +87,13 @@
   /* --- Layout --- */
   --maxw: 1120px;
   --nav-h: 60px;
+  /* Height of the mobile preview hero, used to stagger the mobile tabs' sticky
+     offset BELOW the pinned hero so the live preview stays visible while
+     editing (see .mobile-tabs in the 640px media query). This value is only the
+     no-JS/initial-paint fallback: the Builder measures the real hero height
+     with a ResizeObserver and overrides the var, so tall configs (more rows,
+     pet) never get occluded. */
+  --mobile-hero-h: 210px;
 
   color-scheme: dark;
 }
@@ -1089,31 +1096,36 @@ details[open].disclosure > summary::before {
 }
 
 /* ===========================================================================
-   Inspector overlay (centered dialog card)
+   Inspector panel (non-modal, docked in the sidebar)
    =========================================================================== */
 
-.overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(3, 6, 12, 0.6);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: var(--sp-4);
-}
-.inspector-card {
-  width: min(760px, 100%);
-  max-height: 70vh;
-  display: flex;
-  flex-direction: column;
+.inspector-panel {
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-lg);
+  border-radius: 10px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: slide-up var(--t-med) var(--ease);
+  outline: none;
+}
+/* Docked in the 340px sidebar (desktop only — below 768px the editor collapses
+   to a single full-width column, so the cells keep their mobile 26px there).
+   Scope color cells down so the picker fits without horizontal overflow.
+   Available content width ≈ 296px (340 sidebar − 10 scrollbar − 2 panel border
+   − 32 inspector-body padding). The narrow bands (≤16 cols) and the wrapping
+   6-col cube blocks fit at 16px: 16×16 + 15×2 = 286 ≤ 296. */
+@media (min-width: 769px) {
+  .inspector-panel .color-grid {
+    --cell-size: 16px;
+  }
+  /* The grayscale band is a single 24-column row and would overflow at 16px
+     (24×16 + 23×2 = 430px) and be clipped by the panel's overflow:hidden,
+     leaving the lightest grays unpickable. Shrink its cells so all 24 fit:
+     24×10 + 23×2 = 286 ≤ 296. */
+  .inspector-panel .grid-grayscale {
+    --cell-size: 10px;
+  }
 }
 .inspector-head {
   display: flex;
@@ -1123,9 +1135,9 @@ details[open].disclosure > summary::before {
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--hairline);
 }
+/* No max-height/overflow of its own — the sidebar column scrolls. */
 .inspector-body {
   padding: var(--sp-4);
-  overflow-y: auto;
 }
 @keyframes slide-up {
   from {
@@ -1668,7 +1680,7 @@ details[open].disclosure > summary::before {
 .editor {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: var(--sp-4);
   padding: var(--sp-6);
   max-width: 1280px;
@@ -1717,6 +1729,12 @@ details[open].disclosure > summary::before {
 
 /* Mobile tabs (builder) — hidden on desktop. */
 .mobile-tabs {
+  display: none;
+}
+
+/* Mobile-only sidebar content (e.g. the placed-element PickerCard) — hidden on
+   desktop, where the canvas chips are the selection path. */
+.mobile-only {
   display: none;
 }
 
@@ -1799,7 +1817,11 @@ details[open].disclosure > summary::before {
   .mobile-tabs {
     display: flex;
     position: sticky;
-    top: var(--nav-h);
+    /* Stick BELOW the pinned hero (which sticks at top:var(--nav-h)) so the
+       live preview stays visible while the user scrolls into the editor to
+       reach the docked inspector. Without the offset both pinned at nav-h and
+       the tabs (lower in the DOM, higher z-index) painted OVER the preview. */
+    top: calc(var(--nav-h) + var(--mobile-hero-h));
     z-index: 60;
     gap: 2px;
     padding: var(--sp-2) var(--sp-4) 0;
@@ -1811,6 +1833,10 @@ details[open].disclosure > summary::before {
   }
   .mobile-hide {
     display: none !important;
+  }
+  /* The PickerCard is a flex-column .side-card. */
+  .mobile-only {
+    display: flex;
   }
 
   /* ≥44px touch targets */
@@ -1830,14 +1856,18 @@ details[open].disclosure > summary::before {
   .color-grid {
     --cell-size: 26px;
   }
+  /* The docked inspector is full-width here but still has overflow:hidden, and
+     the 24-col grayscale band would overflow at 26px (24×26 + 23×2 = 670px) and
+     clip the lightest grays. Shrink it to fit the ~574px content width:
+     24×20 + 23×2 = 526 ≤ 574. */
+  .inspector-panel .grid-grayscale {
+    --cell-size: 20px;
+  }
   .export-grid {
     grid-template-columns: 1fr;
   }
   .modal-backdrop {
     padding: var(--sp-3);
-  }
-  .inspector-card {
-    max-height: 82vh;
   }
 }
 

@@ -1,7 +1,8 @@
-// configStore — the editable StatuslineConfig plus selection state. Persisted
-// to localStorage (key pms:config:v1) via zustand `persist`, debounced ~250ms,
-// partialized to the config only. On rehydrate the stored value is run through
-// parseConfig (zod): invalid → fall back to defaultConfig() and surface a toast.
+// configStore — the editable StatuslineConfig plus selection state (which
+// element is currently being edited). Persisted to localStorage (key
+// pms:config:v1) via zustand `persist`, debounced ~250ms, partialized to the
+// config only. On rehydrate the stored value is run through parseConfig (zod):
+// invalid → fall back to defaultConfig() and surface a toast.
 //
 // The mutation actions are written as pure transforms over the config so they
 // can be unit-tested in the node env without a DOM (see __tests__).
@@ -26,13 +27,10 @@ import { defaultConfig } from '../model/presets/defaultPreset'
 export interface ConfigState {
   config: StatuslineConfig
   selectedSegmentId: string | null
-  drawerOpen: boolean
 
-  // selection — the drawer is the ELEMENT inspector only (pet and global
-  // settings live in their own standalone cards in the builder sidebar).
+  // selection — the selected segment is shown in the docked ELEMENT inspector
+  // panel (pet and global settings live in their own standalone sidebar cards).
   selectSegment(id: string | null): void
-  openDrawer(): void
-  closeDrawer(): void
 
   // segment mutation
   addSegment(type: SegmentType, rowId?: string): string
@@ -328,16 +326,8 @@ export const useConfigStore = create<ConfigState>()(
     (set, get) => ({
       config: defaultConfig(),
       selectedSegmentId: null,
-      drawerOpen: false,
 
-      selectSegment: (id) =>
-        set(() =>
-          id === null
-            ? { selectedSegmentId: null, drawerOpen: false }
-            : { selectedSegmentId: id, drawerOpen: true },
-        ),
-      openDrawer: () => set({ drawerOpen: true }),
-      closeDrawer: () => set({ drawerOpen: false }),
+      selectSegment: (id) => set({ selectedSegmentId: id }),
 
       addSegment: (type, rowId) => {
         const seg = makeSegment(type, get().config.global)
@@ -348,7 +338,6 @@ export const useConfigStore = create<ConfigState>()(
         set((s) => ({
           config: removeSegmentFrom(s.config, id),
           selectedSegmentId: s.selectedSegmentId === id ? null : s.selectedSegmentId,
-          drawerOpen: s.selectedSegmentId === id ? false : s.drawerOpen,
         })),
       updateSegment: (id, patch) =>
         set((s) => ({ config: updateSegmentIn(s.config, id, patch) })),
@@ -371,7 +360,7 @@ export const useConfigStore = create<ConfigState>()(
       setLanguage: (language) =>
         set((s) => ({ config: { ...s.config, language } })),
       replaceConfig: (config) =>
-        set({ config, selectedSegmentId: null, drawerOpen: false }),
+        set({ config, selectedSegmentId: null }),
     }),
     {
       name: STORAGE_KEY,

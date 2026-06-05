@@ -62,6 +62,7 @@ function Band({
   onPick,
   onHover,
   onLeave,
+  gridClass,
 }: {
   label: string
   indices: number[]
@@ -70,12 +71,14 @@ function Band({
   onPick: (i: number) => void
   onHover: (i: number) => void
   onLeave: () => void
+  /** Extra class on the grid (e.g. to scope cell-size when docked narrow). */
+  gridClass?: string
 }): JSX.Element {
   return (
     <div className="stack-2">
       <span className="label">{label}</span>
       <div
-        className="color-grid"
+        className={gridClass ? `color-grid ${gridClass}` : 'color-grid'}
         style={{ gridTemplateColumns: `repeat(${cols}, var(--cell-size))` }}
       >
         {indices.map((i) => (
@@ -283,6 +286,7 @@ function PickerCore({
         onPick={commit}
         onHover={hover}
         onLeave={leave}
+        gridClass="grid-grayscale"
       />
 
       <div className="row-flex">
