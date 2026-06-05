@@ -475,7 +475,7 @@ function ThresholdEditor({
       </div>
 
       {open !== null && (
-        <div className="well panel-pad">
+        <div className="well card-pad">
           <PickerCore
             color={stopColor(sorted[open])}
             bold={bold}

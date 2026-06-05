@@ -4,11 +4,11 @@
 
 Build your [Claude Code statusline](https://code.claude.com/docs/en/statusline) by dragging elements around, picking colors from the xterm-256 palette, adopting a reactive ASCII pet — and export a clean, readable script you can install in seconds and keep hacking by hand.
 
-![Pimp My Statusline — PHOSPHOR workbench](docs/screenshot.png)
+![Pimp My Statusline — the product landing](docs/screenshot.png)
 
 ## Features
 
-- **Live terminal preview** — a CRT-styled preview renders your statusline exactly as your terminal will, fed by a scrubbable mock session (drag the context % slider, watch everything react)
+- **Live terminal preview** — wrapped in a macOS / Windows / Linux window chrome, the preview renders your statusline exactly as your terminal will, fed by a scrubbable mock session (drag the context % slider, watch everything react)
 - **Element library** — directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars + reset countdowns, peak-hours indicator, cost, duration, lines ±, vim mode, PR info, and more
 - **Multi-row layout** — arrange elements across any number of rows with drag & drop (keyboard accessible)
 - **Per-element styling** — fixed xterm-256 colors, basic ANSI-16 colors, or threshold mode (green → yellow → red as a percentage climbs, with editable breakpoints)
@@ -63,7 +63,7 @@ src/pets/        pet roster + pure runtime (mood selection, colorize,
 src/preview/     config + mock → ANSI string → HTML; the canonical bytes
 src/generators/  config → readable bash / python / node scripts that
                  reproduce the preview byte-for-byte
-src/ui/          the PHOSPHOR workbench (React + zustand + dnd-kit)
+src/ui/          the landing page + builder workbench (React + zustand + dnd-kit)
 tests/golden/    committed .ansi snapshots (trailing whitespace matters!)
 docs/superpowers/specs/  design docs + adversarial reviews
 ```

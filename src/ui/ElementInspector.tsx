@@ -85,11 +85,11 @@ function StyleControl({
   allowThreshold?: boolean
 }): JSX.Element {
   return (
-    <details className="stack-2">
-      <summary className="label" style={{ cursor: 'pointer', color: 'var(--phosphor-dim)' }}>
+    <details className="stack-2 disclosure">
+      <summary className="label" style={{ cursor: 'pointer', color: 'var(--accent)' }}>
         {label} color
       </summary>
-      <div className="well panel-pad">
+      <div className="well card-pad">
         <Color256Picker style={style} onChange={onChange} allowThreshold={allowThreshold} />
       </div>
     </details>
@@ -124,7 +124,7 @@ function MetricBody({ seg }: { seg: MetricSegment }): JSX.Element {
           active={seg.parts}
           onToggle={(v) => toggle(v as MetricPart)}
         />
-        {timerHidden && <span className="term-comment">// timer is only meaningful for session/week</span>}
+        {timerHidden && <span className="comment">timer is only meaningful for session/week</span>}
       </div>
 
       {seg.parts.includes('bar') && (
@@ -396,7 +396,7 @@ function LabelEmojiAffix({ seg }: { seg: Segment }): JSX.Element {
           <span>emoji</span>
         </label>
         {!emojiGlobal && (
-          <span className="term-comment">// global emoji is off — enable it in the DISPLAY tab</span>
+          <span className="comment">global emoji is off — enable it in the Display tab</span>
         )}
         {emojiGlobal && seg.emoji?.show && (
           <input
@@ -480,8 +480,8 @@ export function ElementInspector({ seg }: { seg: Segment }): JSX.Element {
   return (
     <div className="stack">
       <div className="spread">
-        <span className="mono" style={{ color: 'var(--phosphor)' }}>
-          &gt; editing: {SEGMENTS[seg.type].label}
+        <span className="mono accent">
+          Editing: {SEGMENTS[seg.type].label}
         </span>
         <label className="check">
           <input
@@ -493,7 +493,7 @@ export function ElementInspector({ seg }: { seg: Segment }): JSX.Element {
           <span>enabled</span>
         </label>
       </div>
-      {note && <span className="term-comment">{note}</span>}
+      {note && <span className="comment">{note.replace(/^\/\/\s*/, '')}</span>}
       {body}
       {showAffix && <LabelEmojiAffix seg={seg} />}
     </div>

@@ -1,6 +1,6 @@
-// Terminal-style toast system. A context exposes `toast(message, tone?)`; toasts
-// are announced in an aria-live region and auto-dismiss. Visuals come from the
-// .toast classes in phosphor.css.
+// Toast system. A context exposes `toast(message, tone?)`; toasts are announced
+// in an aria-live region and auto-dismiss. Visuals come from the .toast classes
+// in theme.css.
 
 import {
   createContext,

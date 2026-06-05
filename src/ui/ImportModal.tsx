@@ -6,6 +6,7 @@ import { useEffect, useState, type JSX } from 'react'
 import { useConfigStore } from '../store/configStore'
 import { analyzeImport } from './lib/importFlow'
 import { useToast } from './Toast'
+import { IconClose } from './icons'
 
 export function ImportModal({ onClose }: { onClose: () => void }): JSX.Element {
   const replaceConfig = useConfigStore((s) => s.replaceConfig)
@@ -48,17 +49,17 @@ export function ImportModal({ onClose }: { onClose: () => void }): JSX.Element {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="hud-panel panel-pad stack"
+        className="modal-card stack"
         role="dialog"
         aria-label="Import"
         aria-modal="true"
-        style={{ width: 'min(680px, 100%)', alignSelf: 'center', maxHeight: '90vh' }}
+        style={{ width: 'min(680px, 100%)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="spread">
-          <h2 className="section-head">&gt; Import — paste an exported script</h2>
-          <button type="button" className="btn-icon" aria-label="close import" onClick={onClose}>
-            ✕
+          <h2 className="section-head">Import — paste an exported script</h2>
+          <button type="button" className="icon-btn" aria-label="close import" onClick={onClose}>
+            <IconClose />
           </button>
         </div>
 
@@ -69,7 +70,7 @@ export function ImportModal({ onClose }: { onClose: () => void }): JSX.Element {
           placeholder="paste a previously exported statusline script (.sh / .py / .js), or drop a file…"
           aria-label="script to import"
           data-over={dragOver}
-          style={dragOver ? { borderColor: 'var(--phosphor)', boxShadow: 'var(--glow-soft)' } : undefined}
+          style={dragOver ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 3px var(--accent-softer)' } : undefined}
           onChange={(e) => {
             setText(e.target.value)
             setError(null)
@@ -89,19 +90,19 @@ export function ImportModal({ onClose }: { onClose: () => void }): JSX.Element {
         />
 
         {error && (
-          <span className="mono" style={{ color: 'var(--crit)' }}>
+          <span className="mono" style={{ color: 'var(--danger)' }}>
             {error}
           </span>
         )}
         {warning && (
           <span className="mono" style={{ color: 'var(--warn)' }}>
-            ⚠ {warning}
+            {warning}
           </span>
         )}
 
         <div className="row-flex">
-          <button type="button" className="btn-bracket" data-variant="primary" disabled={!text.trim()} onClick={() => apply(text)}>
-            {warning ? 'IMPORT ANYWAY' : 'IMPORT'}
+          <button type="button" className="btn btn-primary" disabled={!text.trim()} onClick={() => apply(text)}>
+            {warning ? 'Import anyway' : 'Import'}
           </button>
         </div>
       </div>

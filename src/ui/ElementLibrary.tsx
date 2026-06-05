@@ -5,6 +5,7 @@
 
 import { useMemo, useState, type JSX } from 'react'
 import { useDraggable } from '@dnd-kit/core'
+import { IconCheck } from './icons'
 import { useConfigStore } from '../store/configStore'
 import {
   CATEGORY_ORDER,
@@ -69,7 +70,8 @@ function LibraryItem({
       </span>
       {placed > 0 && (
         <span className="placed-tag" aria-label={`${placed} placed`}>
-          ✓ {placed > 1 ? `×${placed}` : 'placed'}
+          <IconCheck style={{ width: 13, height: 13 }} />
+          {placed > 1 ? `×${placed}` : 'placed'}
         </span>
       )}
     </div>
@@ -106,7 +108,7 @@ export function ElementLibrary({ focusedRowId }: { focusedRowId: string | null }
   }
 
   return (
-    <aside className="hud-panel panel-pad stack" aria-label="Element library">
+    <aside className="card card-pad stack" aria-label="Element library">
       <h2 className="section-head">Element Library</h2>
       <div className="field">
         <input
@@ -125,7 +127,7 @@ export function ElementLibrary({ focusedRowId }: { focusedRowId: string | null }
           if (items.length === 0) return null
           return (
             <div key={cat} className="stack-2">
-              <span className="label" style={{ color: 'var(--phosphor-dim)' }}>
+              <span className="label" style={{ color: 'var(--accent)' }}>
                 {cat}
               </span>
               {items.map((e) => (
@@ -135,7 +137,7 @@ export function ElementLibrary({ focusedRowId }: { focusedRowId: string | null }
           )
         })}
         {filtered.length === 0 && (
-          <span className="term-comment">// no elements match "{query}"</span>
+          <span className="comment">no elements match "{query}"</span>
         )}
       </div>
     </aside>

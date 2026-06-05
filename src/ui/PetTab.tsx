@@ -19,7 +19,7 @@ const METRICS: { value: PetMetric; label: string }[] = [
 function MoodTheater({ petId, pct }: { petId: string; pct: number }): JSX.Element {
   const pet = getPet(petId)
   const thresholds = useConfigStore((s) => s.config.pet.thresholds)
-  if (!pet) return <span className="term-comment">// unknown pet</span>
+  if (!pet) return <span className="comment">unknown pet</span>
 
   const available = Object.keys(pet.frames) as Mood[]
   const mood = selectMood(pct, thresholds, available)
@@ -37,8 +37,6 @@ function MoodTheater({ petId, pct }: { petId: string; pct: number }): JSX.Elemen
           fontFamily: 'var(--font-mono)',
           fontSize: '1.5rem',
           lineHeight: 1.2,
-          background: 'var(--bg-deep)',
-          boxShadow: 'inset 0 0 18px rgba(0,0,0,0.7)',
         }}
         aria-label={`${pet.label} at mood ${mood}`}
       >
@@ -50,7 +48,7 @@ function MoodTheater({ petId, pct }: { petId: string; pct: number }): JSX.Elemen
           ))}
         </pre>
       </div>
-      <span className="label" style={{ color: 'var(--phosphor)' }}>
+      <span className="label" style={{ color: 'var(--accent)' }}>
         {mood.toUpperCase()} · {pct}%
       </span>
     </div>
@@ -88,8 +86,8 @@ export function PetTab(): JSX.Element {
               aria-pressed={pet.petId === p.id}
               onClick={() => updatePet({ petId: p.id })}
             >
-              <span style={{ color: pet.petId === p.id ? 'var(--phosphor)' : 'var(--fg)' }}>{p.label}</span>
-              <span className="term-comment" style={{ fontSize: 'var(--fs-12)' }}>
+              <span style={{ color: pet.petId === p.id ? 'var(--accent)' : 'var(--fg)' }}>{p.label}</span>
+              <span className="comment" style={{ fontSize: 'var(--fs-12)' }}>
                 {p.bio}
               </span>
             </button>
@@ -104,7 +102,7 @@ export function PetTab(): JSX.Element {
         <label className="field">
           <span className="spread">
             <span className="label">scrub mood</span>
-            <span className="mono" style={{ color: 'var(--phosphor)' }}>{scrub}%</span>
+            <span className="mono" style={{ color: 'var(--accent)' }}>{scrub}%</span>
           </span>
           <input
             className="range-input"
@@ -158,14 +156,14 @@ export function PetTab(): JSX.Element {
             </button>
           </div>
           {pet.position === 'right' && (
-            <span className="term-comment">// experimental — terminals may strip trailing spaces</span>
+            <span className="comment">experimental — terminals may strip trailing spaces</span>
           )}
         </div>
 
         <label className="field">
           <span className="spread">
             <span className="label">gap</span>
-            <span className="mono" style={{ color: 'var(--phosphor)' }}>{pet.gap}</span>
+            <span className="mono" style={{ color: 'var(--accent)' }}>{pet.gap}</span>
           </span>
           <input
             className="range-input"

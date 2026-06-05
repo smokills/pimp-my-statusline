@@ -1,39 +1,40 @@
-// App — the PHOSPHOR workbench shell. Three-zone desktop layout (library /
-// canvas / sticky preview+mock); a tabbed single-column layout on mobile. Hosts
-// the inspector drawer, export/import modals, the scanline FX overlay, the skip
-// link, and the toast provider.
+// App — the routed shell. '/' renders the marketing Landing page; '#/build'
+// renders the full-screen Builder. Routing is the tiny hash-based useHashRoute
+// (no router lib). The Builder hosts the sticky TerminalMockup preview + compact
+// mock strip, the editor zone (rows canvas + element library), the inspector
+// overlay, the export/import modals, the skip link and the toast provider.
 
 import { useEffect, useState, type JSX } from 'react'
 import { ToastProvider, useToast } from './ui/Toast'
-import { useFx } from './ui/useFx'
-import { TopBar } from './ui/TopBar'
+import { useHashRoute } from './ui/useHashRoute'
+import { useOsPref } from './ui/useOsPref'
+import { BuilderBar } from './ui/BuilderBar'
+import { TerminalMockup } from './ui/TerminalMockup'
+import { AnsiPreview } from './ui/AnsiPreview'
+import { MockStrip } from './ui/MockStrip'
 import { ElementLibrary } from './ui/ElementLibrary'
 import { RowCanvas } from './ui/RowCanvas'
-import { PreviewBezel } from './ui/PreviewBezel'
-import { MockDataPanel } from './ui/MockDataPanel'
-import { InspectorDrawer } from './ui/InspectorDrawer'
+import { InspectorOverlay } from './ui/InspectorOverlay'
 import { ExportModal } from './ui/ExportModal'
 import { ImportModal } from './ui/ImportModal'
+import { Landing } from './ui/landing/Landing'
 import { useConfigStore, onRehydrateWarning } from './store/configStore'
+import { useMockStore } from './store/mockStore'
 
-type MobileTab = 'build' | 'style' | 'pet' | 'import' | 'export'
+type MobileTab = 'build' | 'style' | 'pet'
 
-function Workbench(): JSX.Element {
-  const { fx, toggleFx } = useFx()
+function Builder(): JSX.Element {
   const { toast } = useToast()
+  const { os, setOs } = useOsPref()
   const [showExport, setShowExport] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null)
   const [mobileTab, setMobileTab] = useState<MobileTab>('build')
-  // The mock scrubber is an accordion: open on desktop, collapsed on mobile so
-  // the editor stays reachable directly under the sticky mini-preview.
-  const [mockOpen] = useState<boolean>(
-    () => typeof matchMedia === 'undefined' || !matchMedia('(max-width: 760px)').matches,
-  )
 
+  const config = useConfigStore((s) => s.config)
+  const mock = useMockStore((s) => s.mock)
   const firstRowId = useConfigStore((s) => s.config.rows[0]?.id ?? null)
   const openDrawer = useConfigStore((s) => s.openDrawer)
-  const drawerOpen = useConfigStore((s) => s.drawerOpen)
 
   // Surface the persist rehydrate-fallback as a toast.
   useEffect(() => {
@@ -43,76 +44,56 @@ function Workbench(): JSX.Element {
 
   const effectiveFocusRow = focusedRowId ?? firstRowId
 
-  // Mobile tab → open the drawer on the right tab (openDrawer sets drawerTab).
+  // Mobile tab → open the inspector on the right tab.
   useEffect(() => {
     if (mobileTab === 'style') openDrawer('element')
     else if (mobileTab === 'pet') openDrawer('pet')
   }, [mobileTab, openDrawer])
 
   return (
-    <div className="app">
-      {fx && <div className="scanlines" aria-hidden="true" />}
+    <div className="builder">
       <a className="skip-link" href="#canvas">
-        skip to canvas
+        Skip to canvas
       </a>
 
-      <TopBar
-        fx={fx}
-        onToggleFx={toggleFx}
-        onImport={() => setShowImport(true)}
-        onExport={() => setShowExport(true)}
-      />
+      <BuilderBar onImport={() => setShowImport(true)} onExport={() => setShowExport(true)} />
 
-      {/* Mobile segmented tabs */}
+      {/* Sticky preview zone: OS switcher + mockup + compact mock strip. */}
+      <div className="builder-hero">
+        <div className="builder-hero-inner">
+          <TerminalMockup os={os} onOsChange={setOs} showSwitcher title="~ — statusline">
+            <AnsiPreview config={config} mock={mock} />
+          </TerminalMockup>
+          <MockStrip />
+        </div>
+      </div>
+
+      {/* Mobile segmented tabs (hidden on desktop). */}
       <nav className="mobile-tabs" aria-label="sections">
-        {(['build', 'style', 'pet', 'import', 'export'] as MobileTab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            className="btn-bracket mobile-tab"
-            aria-pressed={mobileTab === t}
-            onClick={() => {
-              if (t === 'export') {
-                setMobileTab('build')
-                setShowExport(true)
-                return
-              }
-              if (t === 'import') {
-                setMobileTab('build')
-                setShowImport(true)
-                return
-              }
-              setMobileTab(t)
-            }}
-          >
-            {t.toUpperCase()}
-          </button>
+        {(['build', 'style', 'pet'] as MobileTab[]).map((t) => (
+          <div key={t} className="segmented seg" style={{ flex: 1 }}>
+            <button
+              type="button"
+              style={{ width: '100%' }}
+              aria-pressed={mobileTab === t}
+              onClick={() => setMobileTab(t)}
+            >
+              {t === 'build' ? 'Build' : t === 'style' ? 'Style' : 'Pet'}
+            </button>
+          </div>
         ))}
       </nav>
 
-      <main className="workbench" data-drawer={drawerOpen} data-tab={mobileTab}>
-        {/* Mini-preview: sticky at top on mobile (order:-1), in the right column
-            on desktop. The mock scrubber lives below it as an accordion. */}
-        <div className="col-preview">
-          <div className="mini-preview">
-            <PreviewBezel />
-          </div>
-          <details className="mock-accordion" open={mockOpen}>
-            <summary className="label mock-accordion-summary">mock session</summary>
-            <MockDataPanel />
-          </details>
-        </div>
-
-        <div className={`col-library ${mobileTab === 'build' ? '' : 'mobile-only-hide'}`}>
-          <ElementLibrary focusedRowId={effectiveFocusRow} />
-        </div>
-
-        <div className={`col-canvas ${mobileTab === 'build' ? '' : 'mobile-only-hide'}`}>
+      <main className="editor">
+        <div className={`editor-canvas ${mobileTab === 'build' ? '' : 'mobile-hide'}`}>
           <RowCanvas focusedRowId={effectiveFocusRow} onFocusRow={setFocusedRowId} />
+        </div>
+        <div className={`editor-library ${mobileTab === 'build' ? '' : 'mobile-hide'}`}>
+          <ElementLibrary focusedRowId={effectiveFocusRow} />
         </div>
       </main>
 
-      <InspectorDrawer fx={fx} onToggleFx={toggleFx} />
+      <InspectorOverlay />
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
@@ -120,10 +101,19 @@ function Workbench(): JSX.Element {
   )
 }
 
+function Router(): JSX.Element {
+  const route = useHashRoute()
+  // Scroll to top when entering the builder so the sticky preview is in view.
+  useEffect(() => {
+    if (route === 'build') window.scrollTo(0, 0)
+  }, [route])
+  return route === 'build' ? <Builder /> : <Landing />
+}
+
 export default function App(): JSX.Element {
   return (
     <ToastProvider>
-      <Workbench />
+      <Router />
     </ToastProvider>
   )
 }

@@ -29,6 +29,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useConfigStore } from '../store/configStore'
 import type { Row, Segment, SegmentType } from '../model/types'
 import { SEGMENTS } from '../model/segments'
+import { IconGrip, IconPlus, IconClose } from './icons'
 import { ElementChip } from './ElementChip'
 import { isLibraryDragId, libraryDragType } from './ElementLibrary'
 import { useToast } from './Toast'
@@ -81,8 +82,8 @@ function RowShell({
   return (
     <div
       ref={setNodeRef}
-      className="row-shell panel-pad stack-2"
-      data-over={focused}
+      className="row-shell"
+      data-focused={focused}
       style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
       onClick={() => onFocusRow(row.id)}
     >
@@ -97,14 +98,14 @@ function RowShell({
             {...listeners}
             {...attributes}
           >
-            ⋮⋮
+            <IconGrip />
           </button>
           <span className="label">row {index + 1}</span>
         </div>
         <div className="row-flex" style={{ gap: 4 }}>
           <button
             type="button"
-            className="btn-icon"
+            className="icon-btn"
             aria-label={`add element to row ${index + 1}`}
             title="add element"
             onClick={(e) => {
@@ -112,21 +113,21 @@ function RowShell({
               onAddHere()
             }}
           >
-            +
+            <IconPlus />
           </button>
           <button
             type="button"
-            className="btn-icon"
+            className="icon-btn"
             data-variant="danger"
             aria-label={`delete row ${index + 1}`}
             title="delete row"
             onClick={(e) => {
               e.stopPropagation()
               removeRow(row.id)
-              toast(`removed → row ${index + 1}`, 'warn')
+              toast(`removed row ${index + 1}`, 'warn')
             }}
           >
-            ✕
+            <IconClose />
           </button>
         </div>
       </div>
@@ -138,7 +139,7 @@ function RowShell({
         <div className="row-flex" style={{ minHeight: 40, alignItems: 'center' }} data-row-id={row.id}>
           {row.segments.length === 0 ? (
             <div className="empty-well" style={{ flex: 1 }}>
-              // drop an element here, or hit [ + ]
+              Drop an element here, or use the + button
             </div>
           ) : (
             row.segments.map((seg: Segment) => (
@@ -308,10 +309,10 @@ export function RowCanvas({
   const empty = rows.length === 0 || rows.every((r) => r.segments.length === 0)
 
   return (
-    <section className="hud-panel panel-pad stack" aria-label="Row canvas" id="canvas">
+    <section className="card card-pad stack" aria-label="Row canvas" id="canvas">
       <div className="spread">
         <h2 className="section-head">Rows — drag to arrange</h2>
-        {empty && <span className="term-comment">// no elements. the library is to your left.</span>}
+        {empty && <span className="comment">no elements yet — add some from the library</span>}
       </div>
 
       <DndContext
@@ -343,7 +344,7 @@ export function RowCanvas({
         <DragOverlay>
           {activeSeg ? (
             <div className="chip" data-dragging="true">
-              <span className="swatch" style={{ background: 'var(--phosphor-dim)' }} />
+              <span className="swatch" style={{ background: 'var(--accent)' }} />
               <span>{SEGMENTS[activeSeg.type].label}</span>
             </div>
           ) : null}
@@ -352,14 +353,15 @@ export function RowCanvas({
 
       <button
         type="button"
-        className="btn-bracket"
+        className="btn"
         style={{ alignSelf: 'flex-start' }}
         onClick={() => {
           const id = addRow()
           onFocusRow(id)
         }}
       >
-        + ADD ROW
+        <IconPlus />
+        Add row
       </button>
 
       <div className="sr-only" aria-live="assertive">

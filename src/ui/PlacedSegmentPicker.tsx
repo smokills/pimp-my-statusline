@@ -17,14 +17,14 @@ export function PlacedSegmentPicker(): JSX.Element {
 
   return (
     <div className="stack">
-      <span className="term-comment">// select an element to edit it</span>
+      <span className="comment">select an element to edit it</span>
       {empty ? (
-        <span className="term-comment">// no elements yet — switch to BUILD to add some</span>
+        <span className="comment">no elements yet — switch to Build to add some</span>
       ) : (
         rows.map((row, i) =>
           row.segments.length === 0 ? null : (
             <div key={row.id} className="stack-2">
-              <span className="label" style={{ color: 'var(--phosphor-dim)' }}>
+              <span className="label" style={{ color: 'var(--accent)' }}>
                 row {i + 1}
               </span>
               <div className="row-flex">

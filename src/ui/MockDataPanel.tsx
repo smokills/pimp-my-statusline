@@ -4,6 +4,7 @@
 // COLUMNS slider, and RANDOMIZE / RESET. Each change re-renders the preview.
 
 import type { JSX } from 'react'
+import { IconRefresh } from './icons'
 import { useMockStore, decomposeNow } from '../store/mockStore'
 import { MOCK_PRESETS, type MockPresetName } from '../model/presets/mockPresets'
 import type { EffortLevel, VimMode, PrReviewState } from '../model/mock'
@@ -36,7 +37,7 @@ function Slider({
     <label className="field">
       <span className="spread">
         <span className="label">{label}</span>
-        <span className="mono" style={{ color: disabled ? 'var(--fg-faint)' : 'var(--phosphor)' }}>
+        <span className="mono" style={{ color: disabled ? 'var(--fg-faint)' : 'var(--accent)' }}>
           {value}
           {suffix}
         </span>
@@ -84,10 +85,10 @@ export function MockDataPanel(): JSX.Element {
   const weekPct = truncPct(mock.rate_limits?.seven_day?.used_percentage)
 
   return (
-    <section className="hud-panel panel-pad stack" aria-label="Mock session data">
+    <section className="card card-pad stack" aria-label="Mock session data">
       <div className="spread">
         <h2 className="section-head">Mock Session</h2>
-        <span className="term-comment">// {presetName}</span>
+        <span className="comment">{presetName}</span>
       </div>
 
       <label className="field">
@@ -230,11 +231,12 @@ export function MockDataPanel(): JSX.Element {
       />
 
       <div className="row-flex">
-        <button type="button" className="btn-bracket" onClick={s.randomize}>
-          ░ RANDOMIZE
+        <button type="button" className="btn btn-sm" onClick={s.randomize}>
+          Randomize
         </button>
-        <button type="button" className="btn-bracket" onClick={s.reset}>
-          ↺ RESET
+        <button type="button" className="btn btn-sm" onClick={s.reset}>
+          <IconRefresh />
+          Reset
         </button>
       </div>
     </section>

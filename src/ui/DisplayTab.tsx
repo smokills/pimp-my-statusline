@@ -1,18 +1,12 @@
-// DisplayTab — global display options: master emoji toggle, the default
-// threshold editor (applied to NEW metric segments), and an FX toggle mirror.
+// DisplayTab — global display options: master emoji toggle and the default
+// threshold editor (applied to NEW metric segments).
 
 import type { JSX } from 'react'
 import { useConfigStore } from '../store/configStore'
 import type { ThresholdStop } from '../model/types'
 import { Color256Picker } from './Color256Picker'
 
-export function DisplayTab({
-  fx,
-  onToggleFx,
-}: {
-  fx: boolean
-  onToggleFx: () => void
-}): JSX.Element {
+export function DisplayTab(): JSX.Element {
   const global = useConfigStore((s) => s.config.global)
   const updateGlobal = useConfigStore((s) => s.updateGlobal)
 
@@ -22,7 +16,7 @@ export function DisplayTab({
 
   return (
     <div className="stack" style={{ maxWidth: 640 }}>
-      <span className="mono" style={{ color: 'var(--phosphor)' }}>&gt; display options</span>
+      <span className="mono accent">Display options</span>
 
       <label className="check">
         <input
@@ -36,7 +30,7 @@ export function DisplayTab({
 
       <hr className="divider" />
       <span className="label">default thresholds (applied to new metric elements)</span>
-      <div className="well panel-pad">
+      <div className="well card-pad">
         <Color256Picker
           style={{ color: { kind: 'threshold', stops: global.defaultThresholds } }}
           allowThreshold={false}
@@ -45,14 +39,7 @@ export function DisplayTab({
           }}
         />
       </div>
-      <span className="term-comment">// these seed the threshold coloring of any element you add next</span>
-
-      <hr className="divider" />
-      <label className="check">
-        <input type="checkbox" checked={fx} onChange={onToggleFx} />
-        <span className="box" />
-        <span>CRT FX — scanline overlay</span>
-      </label>
+      <span className="comment">these seed the threshold coloring of any element you add next</span>
     </div>
   )
 }

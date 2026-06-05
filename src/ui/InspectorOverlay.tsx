@@ -1,6 +1,10 @@
-// InspectorDrawer — bottom slide-up drawer with tabs ELEMENT · PET · DISPLAY.
-// Opens when a chip is selected; Esc and click-away close it. The ELEMENT tab is
-// only meaningful with a selection; PET and DISPLAY are always reachable.
+// InspectorOverlay — the element inspector as a centered dialog-like card with a
+// backdrop. Tabs ELEMENT · PET · DISPLAY. Opens when a chip is selected; Esc and
+// click-outside close it. The card is anchored toward the bottom of the viewport
+// so the sticky preview stays visible above it on desktop.
+//
+// (Replaces the old bottom-drawer container; the tab CONTENT/keyboard behavior is
+// unchanged — ElementInspector / PetTab / DisplayTab / PlacedSegmentPicker.)
 
 import { useEffect, useRef, type JSX } from 'react'
 import { useConfigStore, type DrawerTab } from '../store/configStore'
@@ -8,20 +12,15 @@ import { ElementInspector } from './ElementInspector'
 import { PetTab } from './PetTab'
 import { DisplayTab } from './DisplayTab'
 import { PlacedSegmentPicker } from './PlacedSegmentPicker'
+import { IconClose } from './icons'
 
 const TABS: { value: DrawerTab; label: string }[] = [
-  { value: 'element', label: 'ELEMENT' },
-  { value: 'pet', label: 'PET' },
-  { value: 'display', label: 'DISPLAY' },
+  { value: 'element', label: 'Element' },
+  { value: 'pet', label: 'Pet' },
+  { value: 'display', label: 'Display' },
 ]
 
-export function InspectorDrawer({
-  fx,
-  onToggleFx,
-}: {
-  fx: boolean
-  onToggleFx: () => void
-}): JSX.Element | null {
+export function InspectorOverlay(): JSX.Element | null {
   const open = useConfigStore((s) => s.drawerOpen)
   const tab = useConfigStore((s) => s.drawerTab)
   const setTab = useConfigStore((s) => s.setDrawerTab)
@@ -32,6 +31,11 @@ export function InspectorDrawer({
     s.config.rows.flatMap((r) => r.segments).find((x) => x.id === s.selectedSegmentId),
   )
   const ref = useRef<HTMLDivElement>(null)
+
+  const dismiss = () => {
+    close()
+    selectSegment(null)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -62,47 +66,24 @@ export function InspectorDrawer({
     return () => document.removeEventListener('keydown', onKey)
   }, [selectedId, removeSegment])
 
-  // Click-away: close when a pointerdown lands outside the drawer AND outside the
-  // canvas (clicking a chip on the canvas re-selects rather than closes). This
-  // keeps the rest of the workbench fully interactive while the drawer is open —
-  // a full-viewport catcher would block the mock scrubber and library.
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => {
-      const target = e.target as Node | null
-      if (ref.current?.contains(target)) return
-      const canvas = document.getElementById('canvas')
-      if (canvas?.contains(target)) return
-      close()
-      selectSegment(null)
-    }
-    // Defer so the opening click doesn't immediately close it.
-    const id = setTimeout(() => document.addEventListener('pointerdown', onDown), 0)
-    return () => {
-      clearTimeout(id)
-      document.removeEventListener('pointerdown', onDown)
-    }
-  }, [open, close, selectSegment])
-
   if (!open) return null
 
   return (
     <div
-      ref={ref}
-      className="drawer panel-pad"
-      role="dialog"
-      aria-label="Element inspector"
-      style={{
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 200,
-        maxHeight: '46vh',
-        overflowY: 'auto',
+      className="overlay-backdrop"
+      onPointerDown={(e) => {
+        // Click on the backdrop (outside the card) closes.
+        if (!ref.current?.contains(e.target as Node)) dismiss()
       }}
     >
-        <div className="spread" style={{ marginBottom: 12 }}>
+      <div
+        ref={ref}
+        className="inspector-card"
+        role="dialog"
+        aria-label="Element inspector"
+        aria-modal="false"
+      >
+        <div className="inspector-head">
           <div className="segmented" role="tablist" aria-label="inspector tabs">
             {TABS.map((t) => (
               <button
@@ -116,23 +97,17 @@ export function InspectorDrawer({
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="btn-icon"
-            aria-label="close inspector"
-            title="close (Esc)"
-            onClick={() => {
-              close()
-              selectSegment(null)
-            }}
-          >
-            ✕
+          <button type="button" className="icon-btn" aria-label="close inspector" title="close (Esc)" onClick={dismiss}>
+            <IconClose />
           </button>
         </div>
 
-        {tab === 'element' && (seg ? <ElementInspector seg={seg} /> : <PlacedSegmentPicker />)}
-        {tab === 'pet' && <PetTab />}
-        {tab === 'display' && <DisplayTab fx={fx} onToggleFx={onToggleFx} />}
+        <div className="inspector-body">
+          {tab === 'element' && (seg ? <ElementInspector seg={seg} /> : <PlacedSegmentPicker />)}
+          {tab === 'pet' && <PetTab />}
+          {tab === 'display' && <DisplayTab />}
+        </div>
+      </div>
     </div>
   )
 }

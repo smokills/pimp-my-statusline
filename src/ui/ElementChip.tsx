@@ -7,6 +7,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Segment } from '../model/types'
 import { SEGMENTS } from '../model/segments'
+import { IconClose } from './icons'
 import { primaryStyle, variantGlyphs } from './lib/library'
 import { styleSwatchHex } from './lib/color'
 
@@ -63,7 +64,7 @@ export function ElementChip({
       )}
       <button
         type="button"
-        className="btn-icon"
+        className="icon-btn"
         data-variant="danger"
         style={{ width: 22, height: 22, marginLeft: 2 }}
         aria-label={`remove ${label}`}
@@ -75,7 +76,7 @@ export function ElementChip({
         // Prevent the drag listeners (on the parent) from hijacking the click.
         onPointerDown={(e) => e.stopPropagation()}
       >
-        ✕
+        <IconClose style={{ width: 13, height: 13 }} />
       </button>
     </div>
   )

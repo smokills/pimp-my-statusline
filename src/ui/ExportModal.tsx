@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState, type JSX } from 'react'
 import { useConfigStore } from '../store/configStore'
 import { generate, scriptFileName, LANGUAGES, type Lang } from '../generators'
 import { useToast } from './Toast'
+import { IconClose, IconCopy, IconDownload } from './icons'
 import { highlightCode, highlightJson } from './lib/highlight'
 import { settingsSnippet, installSteps, dependencyNote } from './lib/install'
 
@@ -95,17 +96,17 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="hud-panel panel-pad"
+        className="modal-card"
         role="dialog"
         aria-label="Export"
         aria-modal="true"
-        style={{ width: 'min(1100px, 100%)', display: 'flex', flexDirection: 'column', gap: 16 }}
+        style={{ width: 'min(1100px, 100%)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="spread">
-          <h2 className="section-head">&gt; Export — choose your shell</h2>
-          <button type="button" className="btn-icon" aria-label="close export" onClick={onClose}>
-            ✕
+          <h2 className="section-head">Export — choose your shell</h2>
+          <button type="button" className="icon-btn" aria-label="close export" onClick={onClose}>
+            <IconClose />
           </button>
         </div>
 
@@ -123,8 +124,8 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
           ))}
         </div>
 
-        <span className="term-comment" data-tone={lang === 'bash' ? 'warn' : undefined} style={{ color: lang === 'bash' ? 'var(--warn)' : undefined }}>
-          // {dependencyNote(lang)}
+        <span className="comment" style={{ color: lang === 'bash' ? 'var(--warn)' : undefined }}>
+          {dependencyNote(lang)}
         </span>
 
         <div className="export-grid">
@@ -134,11 +135,13 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
               <CodeView code={script} lang={lang} />
             </div>
             <div className="row-flex">
-              <button type="button" className="btn-bracket" data-variant="primary" onClick={() => copy(script, 'copied → clipboard')}>
-                COPY
+              <button type="button" className="btn btn-primary" onClick={() => copy(script, 'copied to clipboard')}>
+                <IconCopy />
+                Copy
               </button>
-              <button type="button" className="btn-bracket" onClick={download}>
-                DOWNLOAD
+              <button type="button" className="btn" onClick={download}>
+                <IconDownload />
+                Download
               </button>
             </div>
           </div>
@@ -146,7 +149,7 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
           {/* Install rail */}
           <div className="stack scroll-y" style={{ maxHeight: '60vh' }}>
             <span className="label">install</span>
-            <ol className="prose" style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 'var(--fs-14)', lineHeight: 1.6 }}>
               {steps.map((step, i) => (
                 <li key={i}>
                   {step.text}
@@ -163,16 +166,17 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
             <div className="well" style={{ maxHeight: 220, overflow: 'auto' }}>
               <CodeView code={snippet} lang={lang} isJson />
             </div>
-            <button type="button" className="btn-bracket" onClick={() => copy(snippet, 'copied settings.json → clipboard')}>
-              COPY settings.json
+            <button type="button" className="btn" onClick={() => copy(snippet, 'copied settings.json to clipboard')}>
+              <IconCopy />
+              Copy settings.json
             </button>
           </div>
         </div>
 
         <hr className="divider" />
-        <span className="term-comment">
-          // line 2 of the script carries a <strong>pimp-my-statusline:v1:</strong> marker — paste the script
-          back via [ IMPORT ] to resume editing this exact config.
+        <span className="comment">
+          Line 2 of the script carries a <strong>pimp-my-statusline:v1:</strong> marker — paste the script
+          back via Import to resume editing this exact config.
         </span>
       </div>
     </div>
