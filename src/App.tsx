@@ -8,10 +8,10 @@
 // editing. It also owns the export/import modals, the skip link and the toast
 // provider.
 
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { ToastProvider, useToast } from './ui/Toast'
 import { useHashRoute } from './ui/useHashRoute'
-import { useOsPref } from './ui/useOsPref'
+import { detectOs } from './ui/detectOs'
 import { BuilderBar } from './ui/BuilderBar'
 import { TerminalMockup } from './ui/TerminalMockup'
 import { AnsiPreview } from './ui/AnsiPreview'
@@ -42,7 +42,8 @@ function PickerCard(): JSX.Element {
 
 function Builder(): JSX.Element {
   const { toast } = useToast()
-  const { os, setOs } = useOsPref()
+  // The mockup chrome follows the visitor's OS — detected once, no switcher.
+  const os = useMemo(() => detectOs(), [])
   const [showExport, setShowExport] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null)
@@ -99,10 +100,10 @@ function Builder(): JSX.Element {
 
       <BuilderBar onImport={() => setShowImport(true)} onExport={() => setShowExport(true)} />
 
-      {/* Sticky preview zone: OS switcher + a wide, roomy mockup. */}
+      {/* Sticky preview zone: a wide, roomy mockup in the visitor's OS chrome. */}
       <div className="builder-hero" ref={heroRef}>
         <div className="builder-hero-inner">
-          <TerminalMockup os={os} onOsChange={setOs} showSwitcher title="~ — statusline">
+          <TerminalMockup os={os} title="~ — statusline">
             <AnsiPreview config={config} mock={mock} />
           </TerminalMockup>
         </div>

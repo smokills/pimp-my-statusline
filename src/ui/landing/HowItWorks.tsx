@@ -12,7 +12,7 @@ import { defaultConfig } from '../../model/presets/defaultPreset'
 import { panic } from '../../model/presets/mockPresets'
 import { TerminalMockup } from '../TerminalMockup'
 import { AnsiPreview } from '../AnsiPreview'
-import { useOsPref } from '../useOsPref'
+import { detectOs } from '../detectOs'
 import { useToast } from '../Toast'
 import { IconCheck, IconCopy } from '../icons'
 
@@ -53,8 +53,8 @@ function ExcerptBlock({ code }: { code: string }): JSX.Element {
 }
 
 export function HowItWorks(): JSX.Element {
-  // Follows the shared OS pref live (hero/builder switches update this too).
-  const { os } = useOsPref()
+  // Same OS chrome as every mockup on the page: the visitor's own.
+  const os = useMemo(() => detectOs(), [])
   const excerpt = useMemo(bashExcerpt, [])
   const panicMock = useMemo(panic, [])
   const config = useMemo(defaultConfig, [])

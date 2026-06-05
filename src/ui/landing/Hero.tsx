@@ -5,8 +5,8 @@
 // renderToAnsi, stepping the context % through a loop (12 → 34 → 58 → 83 → 96)
 // on a 3s interval so the pet visibly changes mood. It is an instant swap, not
 // an animation. Under prefers-reduced-motion the loop is paused and the 34%
-// state is shown. The OS switcher above it teases the OS-chrome feature and is
-// shared (useOsPref) with the builder.
+// state is shown. The window chrome matches the visitor's OS (detectOs) so the
+// mockup reads as THEIR terminal.
 
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { defaultConfig } from '../../model/presets/defaultPreset'
@@ -15,7 +15,7 @@ import type { MockData } from '../../model/mock'
 import type { StatuslineConfig } from '../../model/types'
 import { TerminalMockup } from '../TerminalMockup'
 import { AnsiPreview } from '../AnsiPreview'
-import { useOsPref } from '../useOsPref'
+import { detectOs } from '../detectOs'
 import { IconArrowRight, IconGitHub } from '../icons'
 
 const GITHUB_URL = 'https://github.com/smokills/pimp-my-statusline'
@@ -39,7 +39,7 @@ function mockAtContext(pct: number): MockData {
 }
 
 export function Hero(): JSX.Element {
-  const { os, setOs } = useOsPref()
+  const os = useMemo(() => detectOs(), [])
   const config = useMemo(heroConfig, [])
 
   // Step index into CTX_STEPS. Starts on the 34% state (index 1) so the static
@@ -103,7 +103,7 @@ export function Hero(): JSX.Element {
         </div>
 
         <div className="hero-demo">
-          <TerminalMockup os={os} onOsChange={setOs} showSwitcher title="~ — statusline">
+          <TerminalMockup os={os} title="~ — statusline">
             <AnsiPreview config={config} mock={mock} ariaLabel="Live demo statusline preview" />
           </TerminalMockup>
         </div>

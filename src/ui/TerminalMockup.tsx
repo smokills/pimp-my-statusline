@@ -1,9 +1,8 @@
 // TerminalMockup — the product centerpiece. Wraps arbitrary children (the ANSI
 // preview lines) in an OS-accurate window chrome. The CONTENT is identical
 // across OSes; only the chrome (corners, title alignment, window controls)
-// changes. An optional segmented switcher (macOS · Windows · Linux) flips the OS;
-// the choice is owned by the caller (shared via useOsPref) so it persists and is
-// the same in the landing demo and the builder.
+// changes. The OS is detected from the visitor's browser (detectOs) — callers
+// pass it in so every mockup on the page agrees.
 //
 // Chrome details (lovingly accurate):
 //   macOS  — rounded window, traffic lights (red #FF5F57 / yellow #FEBC2E /
@@ -14,7 +13,7 @@
 //            buttons on the right (close → red on hover).
 
 import type { JSX, ReactNode } from 'react'
-import { OS_KINDS, OS_LABEL, type OsKind } from './useOsPref'
+import type { OsKind } from './detectOs'
 import {
   IconWinMin,
   IconWinMax,
@@ -71,43 +70,13 @@ function LinuxChrome({ title }: { title: string }): JSX.Element {
   )
 }
 
-export function OsSwitcher({
-  os,
-  onOsChange,
-}: {
-  os: OsKind
-  onOsChange: (os: OsKind) => void
-}): JSX.Element {
-  return (
-    <div className="os-switch">
-      <div className="segmented" role="group" aria-label="Window style: macOS, Windows, or Linux">
-        {OS_KINDS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            aria-pressed={os === k}
-            onClick={() => onOsChange(k)}
-          >
-            {OS_LABEL[k]}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export function TerminalMockup({
   os,
-  onOsChange,
   title = '~ — statusline',
-  showSwitcher = false,
   children,
 }: {
   os: OsKind
-  onOsChange?: (os: OsKind) => void
   title?: string
-  /** Render the OS switcher above the window (only when onOsChange is given). */
-  showSwitcher?: boolean
   children: ReactNode
 }): JSX.Element {
   const chrome =
@@ -120,12 +89,9 @@ export function TerminalMockup({
     )
 
   return (
-    <div>
-      {showSwitcher && onOsChange && <OsSwitcher os={os} onOsChange={onOsChange} />}
-      <div className="term-mockup" data-os={os}>
-        {chrome}
-        <div className="term-body">{children}</div>
-      </div>
+    <div className="term-mockup" data-os={os}>
+      {chrome}
+      <div className="term-body">{children}</div>
     </div>
   )
 }
