@@ -6,7 +6,7 @@
 //      'bash') with the giant marker line dropped, trimmed to ~14 lines) in a code
 //      block with a copy button.
 
-import { useMemo, useState, type JSX } from 'react'
+import { useMemo, type JSX } from 'react'
 import { generate } from '../../generators'
 import { defaultConfig } from '../../model/presets/defaultPreset'
 import { panic } from '../../model/presets/mockPresets'
@@ -53,11 +53,11 @@ function ExcerptBlock({ code }: { code: string }): JSX.Element {
 }
 
 export function HowItWorks(): JSX.Element {
-  const { os, setOs } = useOsPref()
+  // Follows the shared OS pref live (hero/builder switches update this too).
+  const { os } = useOsPref()
   const excerpt = useMemo(bashExcerpt, [])
   const panicMock = useMemo(panic, [])
   const config = useMemo(defaultConfig, [])
-  const [demoOs] = useState(os)
 
   return (
     <section className="section" id="how" style={{ background: 'var(--muted-bg)' }}>
@@ -127,7 +127,7 @@ export function HowItWorks(): JSX.Element {
               </ul>
             </div>
             <div className="step-visual">
-              <TerminalMockup os={demoOs} onOsChange={setOs} title="~ — panic">
+              <TerminalMockup os={os} title="~ — panic">
                 <AnsiPreview
                   config={config}
                   mock={panicMock}

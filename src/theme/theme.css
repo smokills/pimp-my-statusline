@@ -211,7 +211,9 @@ a {
   color: var(--accent);
 }
 .comment {
-  color: var(--fg-faint);
+  /* Informational hint text must meet 4.5:1 — fg-muted (6.96:1 on bg), not
+     fg-faint (3.75:1, reserved for placeholders/disabled). */
+  color: var(--fg-muted);
   font-style: italic;
 }
 .glow {
@@ -942,6 +944,10 @@ details[open].disclosure > summary::before {
   line-height: 1.5;
   white-space: pre;
   overflow-x: auto;
+  /* Terminal output is columnar: each ANSI line is a block div, so an
+     inherited text-align (e.g. the centered hero) would center every line
+     independently and break the pet's fixed left column. Never inherit. */
+  text-align: left;
 }
 .terminal-empty {
   color: var(--fg-faint);

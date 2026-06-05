@@ -31,6 +31,9 @@ export function InspectorOverlay(): JSX.Element | null {
     s.config.rows.flatMap((r) => r.segments).find((x) => x.id === s.selectedSegmentId),
   )
   const ref = useRef<HTMLDivElement>(null)
+  // The element that had focus before the dialog opened — restored on close so
+  // keyboard users land back on the chip that triggered the inspector.
+  const restoreRef = useRef<HTMLElement | null>(null)
 
   const dismiss = () => {
     close()
@@ -48,6 +51,19 @@ export function InspectorOverlay(): JSX.Element | null {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, close, selectSegment])
+
+  // Focus management: move focus into the dialog on open, restore it on close.
+  useEffect(() => {
+    if (open) {
+      restoreRef.current = document.activeElement as HTMLElement | null
+      // Focus the card itself (tabIndex -1) so Esc/tab start from the dialog.
+      ref.current?.focus()
+      return () => {
+        restoreRef.current?.focus?.()
+        restoreRef.current = null
+      }
+    }
+  }, [open])
 
   // Delete/Backspace removes the selected segment (when focus is not in a field).
   const removeSegment = useConfigStore((s) => s.removeSegment)
@@ -81,7 +97,8 @@ export function InspectorOverlay(): JSX.Element | null {
         className="inspector-card"
         role="dialog"
         aria-label="Element inspector"
-        aria-modal="false"
+        aria-modal="true"
+        tabIndex={-1}
       >
         <div className="inspector-head">
           <div className="segmented" role="tablist" aria-label="inspector tabs">

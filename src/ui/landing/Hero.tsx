@@ -38,12 +38,6 @@ function mockAtContext(pct: number): MockData {
   }
 }
 
-function prefersReducedMotion(): boolean {
-  return (
-    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-}
-
 export function Hero(): JSX.Element {
   const { os, setOs } = useOsPref()
   const config = useMemo(heroConfig, [])
@@ -53,9 +47,24 @@ export function Hero(): JSX.Element {
   const [step, setStep] = useState(1)
 
   useEffect(() => {
-    if (prefersReducedMotion()) return
-    const id = setInterval(() => setStep((s) => (s + 1) % CTX_STEPS.length), STEP_MS)
-    return () => clearInterval(id)
+    if (typeof matchMedia === 'undefined') return
+    const mq = matchMedia('(prefers-reduced-motion: reduce)')
+    let id: ReturnType<typeof setInterval> | null = null
+    const sync = () => {
+      if (mq.matches) {
+        if (id !== null) clearInterval(id)
+        id = null
+        setStep(1) // freeze on the typical 34% state
+      } else if (id === null) {
+        id = setInterval(() => setStep((s) => (s + 1) % CTX_STEPS.length), STEP_MS)
+      }
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => {
+      mq.removeEventListener('change', sync)
+      if (id !== null) clearInterval(id)
+    }
   }, [])
 
   const mock = useMemo(() => mockAtContext(CTX_STEPS[step]), [step])
