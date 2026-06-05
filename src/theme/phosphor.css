@@ -975,14 +975,18 @@ details[open] > summary::before {
   }
   /* Mini-preview docks at the top, just under the tab bar, and stays put while
      the editor scrolls beneath it. The mock scrubber collapses into the
-     accordion directly below it. */
+     accordion directly below it.
+
+     `display: contents` dissolves .col-preview so .mini-preview and
+     .mock-accordion become flex items of .workbench directly: the sticky
+     mini-preview's containing block is then the FULL workbench column, so it
+     stays docked for the whole editor scroll (sticky clamps to its parent —
+     nested inside the short .col-preview it unsticks after ~200px). */
   .col-preview {
-    order: -1;
-    position: static;
-    top: auto;
-    gap: var(--sp-2);
+    display: contents;
   }
   .mini-preview {
+    order: -2;
     display: block;
     position: sticky;
     top: 48px;
@@ -995,6 +999,7 @@ details[open] > summary::before {
     font-size: var(--fs-13);
   }
   .mock-accordion {
+    order: -1;
     border: 1px solid var(--border);
     background: var(--surface);
     padding: var(--sp-2);
