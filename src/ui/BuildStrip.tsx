@@ -31,7 +31,6 @@ export function BuildStrip(): JSX.Element {
   const pet = useConfigStore((s) => s.config.pet)
   const defaultThresholds = useConfigStore((s) => s.config.global.defaultThresholds)
   const mock = useMockStore((s) => s.mock)
-  const presetName = useMockStore((s) => s.presetName)
   const { toast } = useToast()
   const [tab, setTab] = useState<GlobalTab>('builds')
 
@@ -67,7 +66,7 @@ export function BuildStrip(): JSX.Element {
   }
 
   // Status cues in the tab labels, so global state is readable at a glance:
-  // the active pet, customized thresholds, the mock preset.
+  // the active pet and customized thresholds.
   const petStatus = pet.enabled
     ? (PETS.find((p) => p.id === pet.petId)?.label ?? pet.petId)
     : 'off'
@@ -78,7 +77,7 @@ export function BuildStrip(): JSX.Element {
     { key: 'builds', label: 'Builds' },
     { key: 'pet', label: `Pet · ${petStatus}` },
     { key: 'settings', label: `Settings${customThresholds ? ' · custom' : ''}` },
-    { key: 'data', label: `Preview · ${presetName}` },
+    { key: 'data', label: 'Preview' },
   ]
 
   return (

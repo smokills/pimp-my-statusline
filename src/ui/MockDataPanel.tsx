@@ -1,37 +1,47 @@
 // MockDataPanel — the "Preview" tab's panel: the scenario scrubber for the live
-// preview. Preset dropdown, metric sliders (ctx/5h/7d), a clock control
-// (dow + time), presence checkboxes for optional objects, dropdowns, git-branch
-// input, a COLUMNS slider, and RANDOMIZE / RESET. Each change re-renders the
-// preview above; none of it touches the config or the exported script.
+// preview, laid out as a compact three-column grid (usage · session · present
+// objects). Every change re-renders the preview above; none of it touches the
+// config or the exported script.
 
 import type { JSX } from 'react'
 import { IconRefresh } from './icons'
-import { useMockStore, decomposeNow } from '../store/mockStore'
-import { MOCK_PRESETS, type MockPresetName } from '../model/presets/mockPresets'
+import { useMockStore } from '../store/mockStore'
 import type { EffortLevel, VimMode, PrReviewState } from '../model/mock'
 import { truncPct } from '../model/evaluate-helpers'
 
-const PRESETS = Object.keys(MOCK_PRESETS) as MockPresetName[]
 const EFFORTS: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const VIM_MODES: VimMode[] = ['NORMAL', 'INSERT', 'VISUAL', 'VISUAL LINE']
 const PR_STATES: PrReviewState[] = ['approved', 'pending', 'changes_requested', 'draft']
-const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+/** Compact duration for the resets-in scrubbers: 90 → "1h30m", 3000 → "2d2h". */
+function fmtMinutes(min: number): string {
+  if (min <= 0) return 'now'
+  const d = Math.floor(min / 1440)
+  const h = Math.floor((min % 1440) / 60)
+  const m = min % 60
+  if (d > 0) return `${d}d${h}h`
+  if (h > 0) return `${h}h${m}m`
+  return `${m}m`
+}
 
 function Slider({
   label,
   value,
+  display,
   onChange,
   min = 0,
   max = 100,
-  suffix = '%',
+  step = 1,
   disabled = false,
 }: {
   label: string
   value: number
+  /** Formatted value shown next to the label (defaults to `${value}%`). */
+  display?: string
   onChange: (n: number) => void
   min?: number
   max?: number
-  suffix?: string
+  step?: number
   disabled?: boolean
 }): JSX.Element {
   return (
@@ -39,8 +49,7 @@ function Slider({
       <span className="spread">
         <span className="label">{label}</span>
         <span className="mono" style={{ color: disabled ? 'var(--fg-faint)' : 'var(--accent)' }}>
-          {value}
-          {suffix}
+          {display ?? `${value}%`}
         </span>
       </span>
       <input
@@ -48,6 +57,7 @@ function Slider({
         type="range"
         min={min}
         max={max}
+        step={step}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -77,19 +87,32 @@ function Toggle({
 
 export function MockDataPanel(): JSX.Element {
   const mock = useMockStore((s) => s.mock)
-  const presetName = useMockStore((s) => s.presetName)
   const s = useMockStore()
 
-  const clock = decomposeNow(mock._now)
   const ctxPct = truncPct(mock.context_window?.used_percentage)
   const sesPct = truncPct(mock.rate_limits?.five_hour?.used_percentage)
   const weekPct = truncPct(mock.rate_limits?.seven_day?.used_percentage)
+  // Countdown scrubbers: minutes from the (frozen) sim clock until each reset.
+  const sesResetMin = mock.rate_limits?.five_hour
+    ? Math.max(0, Math.round((mock.rate_limits.five_hour.resets_at - mock._now) / 60))
+    : 0
+  const weekResetMin = mock.rate_limits?.seven_day
+    ? Math.max(0, Math.round((mock.rate_limits.seven_day.resets_at - mock._now) / 60))
+    : 0
 
   return (
     <section className="card card-pad stack" aria-label="Preview scenario">
       <div className="spread">
         <h3 className="section-head">Preview scenario</h3>
-        <span className="comment">{presetName}</span>
+        <div className="row-flex">
+          <button type="button" className="btn btn-sm" onClick={s.randomize}>
+            Randomize
+          </button>
+          <button type="button" className="btn btn-sm" onClick={s.reset}>
+            <IconRefresh />
+            Reset
+          </button>
+        </div>
       </div>
 
       <span className="comment">
@@ -98,153 +121,135 @@ export function MockDataPanel(): JSX.Element {
         script
       </span>
 
-      <label className="field">
-        <span className="label">preset</span>
-        <select
-          className="select-input"
-          value={PRESETS.includes(presetName as MockPresetName) ? presetName : ''}
-          onChange={(e) => s.applyPreset(e.target.value as MockPresetName)}
-        >
-          {!PRESETS.includes(presetName as MockPresetName) && <option value="">custom</option>}
-          {PRESETS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <Slider label="ctx" value={ctxPct} onChange={s.setContextPct} disabled={!mock.context_window} />
-      <Slider label="5h session" value={sesPct} onChange={s.setSessionPct} disabled={!mock.rate_limits?.five_hour} />
-      <Slider label="7d week" value={weekPct} onChange={s.setWeekPct} disabled={!mock.rate_limits?.seven_day} />
-
-      <hr className="divider" />
-      <span className="label">clock (drives countdowns)</span>
-      <div className="row-flex">
-        <select
-          className="select-input"
-          aria-label="day of week"
-          value={clock.dow}
-          onChange={(e) => s.setClock({ dow: Number(e.target.value) })}
-        >
-          {DOW.map((d, i) => (
-            <option key={d} value={i + 1}>
-              {d}
-            </option>
-          ))}
-        </select>
-        <select
-          className="select-input"
-          aria-label="hour"
-          value={clock.hour}
-          onChange={(e) => s.setClock({ hour: Number(e.target.value) })}
-        >
-          {Array.from({ length: 24 }, (_, h) => (
-            <option key={h} value={h}>
-              {String(h).padStart(2, '0')}:00
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <hr className="divider" />
-      <span className="label">present objects</span>
-      <div className="row-flex" style={{ gap: 12 }}>
-        <Toggle label="context" checked={!!mock.context_window} onChange={s.toggleContext} />
-        <Toggle label="rate_limits" checked={!!mock.rate_limits} onChange={s.toggleRateLimits} />
-        <Toggle label="cost" checked={!!mock.cost} onChange={s.toggleCost} />
-        <Toggle label="effort" checked={!!mock.effort} onChange={s.toggleEffort} />
-        <Toggle label="vim" checked={!!mock.vim} onChange={s.toggleVim} />
-        <Toggle label="pr" checked={!!mock.pr} onChange={s.togglePr} />
-        <Toggle label="session_name" checked={!!mock.session_name} onChange={s.toggleSessionName} />
-        <Toggle label="thinking" checked={!!mock.thinking} onChange={s.toggleThinking} />
-        <Toggle label="worktree" checked={!!mock.worktree} onChange={s.toggleWorktree} />
-      </div>
-
-      <hr className="divider" />
-      <div className="row-flex" style={{ gap: 12 }}>
-        <label className="field">
-          <span className="label">model</span>
-          <input
-            className="text-input"
-            style={{ width: 130 }}
-            value={mock.model.display_name}
-            onChange={(e) => s.setModelName(e.target.value)}
-            aria-label="model name"
+      <div className="mock-grid">
+        {/* --- usage: the metric percentages + their reset countdowns --- */}
+        <div className="stack-2">
+          <span className="label">usage</span>
+          <Slider label="context" value={ctxPct} onChange={s.setContextPct} disabled={!mock.context_window} />
+          <Slider
+            label="5h session"
+            value={sesPct}
+            onChange={s.setSessionPct}
+            disabled={!mock.rate_limits?.five_hour}
           />
-        </label>
-        {mock.effort && (
-          <label className="field">
-            <span className="label">effort</span>
-            <select
-              className="select-input"
-              value={mock.effort.level}
-              onChange={(e) => s.setEffortLevel(e.target.value as EffortLevel)}
-            >
-              {EFFORTS.map((l) => (
-                <option key={l}>{l}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        {mock.vim && (
-          <label className="field">
-            <span className="label">vim</span>
-            <select
-              className="select-input"
-              value={mock.vim.mode}
-              onChange={(e) => s.setVimMode(e.target.value as VimMode)}
-            >
-              {VIM_MODES.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        {mock.pr && (
-          <label className="field">
-            <span className="label">pr state</span>
-            <select
-              className="select-input"
-              value={mock.pr.review_state ?? 'pending'}
-              onChange={(e) => s.setPrState(e.target.value as PrReviewState)}
-            >
-              {PR_STATES.map((p) => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
+          <Slider
+            label="5h resets in"
+            value={sesResetMin}
+            display={fmtMinutes(sesResetMin)}
+            onChange={s.setSessionResetMinutes}
+            min={0}
+            max={300}
+            step={5}
+            disabled={!mock.rate_limits?.five_hour}
+          />
+          <Slider
+            label="7d week"
+            value={weekPct}
+            onChange={s.setWeekPct}
+            disabled={!mock.rate_limits?.seven_day}
+          />
+          <Slider
+            label="7d resets in"
+            value={weekResetMin}
+            display={fmtMinutes(weekResetMin)}
+            onChange={s.setWeekResetMinutes}
+            min={0}
+            max={10080}
+            step={60}
+            disabled={!mock.rate_limits?.seven_day}
+          />
+        </div>
 
-      <label className="field">
-        <span className="label">git branch</span>
-        <input
-          className="text-input"
-          value={mock._gitBranch ?? ''}
-          placeholder="(no branch)"
-          onChange={(e) => s.setGitBranch(e.target.value)}
-          aria-label="git branch"
-        />
-      </label>
+        {/* --- session facts: model, effort, branch, terminal width --- */}
+        <div className="stack-2">
+          <span className="label">session</span>
+          <label className="field">
+            <span className="label">model</span>
+            <input
+              className="text-input"
+              value={mock.model.display_name}
+              onChange={(e) => s.setModelName(e.target.value)}
+              aria-label="model name"
+            />
+          </label>
+          {mock.effort && (
+            <label className="field">
+              <span className="label">effort</span>
+              <select
+                className="select-input"
+                value={mock.effort.level}
+                onChange={(e) => s.setEffortLevel(e.target.value as EffortLevel)}
+              >
+                {EFFORTS.map((l) => (
+                  <option key={l}>{l}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {mock.vim && (
+            <label className="field">
+              <span className="label">vim</span>
+              <select
+                className="select-input"
+                value={mock.vim.mode}
+                onChange={(e) => s.setVimMode(e.target.value as VimMode)}
+              >
+                {VIM_MODES.map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {mock.pr && (
+            <label className="field">
+              <span className="label">pr state</span>
+              <select
+                className="select-input"
+                value={mock.pr.review_state ?? 'pending'}
+                onChange={(e) => s.setPrState(e.target.value as PrReviewState)}
+              >
+                {PR_STATES.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="field">
+            <span className="label">git branch</span>
+            <input
+              className="text-input"
+              value={mock._gitBranch ?? ''}
+              placeholder="(no branch)"
+              onChange={(e) => s.setGitBranch(e.target.value)}
+              aria-label="git branch"
+            />
+          </label>
+          <Slider
+            label="terminal width"
+            value={mock._columns}
+            display={`${mock._columns} cols`}
+            onChange={s.setColumns}
+            min={20}
+            max={200}
+          />
+          <span className="comment">width only matters to full-width separators</span>
+        </div>
 
-      <Slider
-        label="columns"
-        value={mock._columns}
-        onChange={s.setColumns}
-        min={20}
-        max={200}
-        suffix=""
-      />
-
-      <div className="row-flex">
-        <button type="button" className="btn btn-sm" onClick={s.randomize}>
-          Randomize
-        </button>
-        <button type="button" className="btn btn-sm" onClick={s.reset}>
-          <IconRefresh />
-          Reset
-        </button>
+        {/* --- presence: which optional stdin objects exist at all --- */}
+        <div className="stack-2">
+          <span className="label">present objects</span>
+          <div className="mock-checks">
+            <Toggle label="context" checked={!!mock.context_window} onChange={s.toggleContext} />
+            <Toggle label="rate_limits" checked={!!mock.rate_limits} onChange={s.toggleRateLimits} />
+            <Toggle label="cost" checked={!!mock.cost} onChange={s.toggleCost} />
+            <Toggle label="effort" checked={!!mock.effort} onChange={s.toggleEffort} />
+            <Toggle label="vim" checked={!!mock.vim} onChange={s.toggleVim} />
+            <Toggle label="pr" checked={!!mock.pr} onChange={s.togglePr} />
+            <Toggle label="session_name" checked={!!mock.session_name} onChange={s.toggleSessionName} />
+            <Toggle label="thinking" checked={!!mock.thinking} onChange={s.toggleThinking} />
+            <Toggle label="worktree" checked={!!mock.worktree} onChange={s.toggleWorktree} />
+          </div>
+        </div>
       </div>
     </section>
   )

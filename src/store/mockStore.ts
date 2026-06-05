@@ -1,7 +1,10 @@
 // mockStore — the (un-persisted) mock session that drives the live preview.
 // Holds one MockData object plus immutable-style setters for every scrubbable
-// field, applyPreset(name), randomize() and reset(). Every mutation produces a
-// NEW MockData object (and nested objects) so React re-renders cleanly.
+// field, randomize() and reset(). Every mutation produces a NEW MockData object
+// (and nested objects) so React re-renders cleanly.
+//
+// The named mock presets (typical/fresh/panic/…) remain model-level fixtures
+// for the parity tests; the UI scrubs a single scenario seeded from typical().
 
 import { create } from 'zustand'
 import type {
@@ -10,33 +13,7 @@ import type {
   VimMode,
   PrReviewState,
 } from '../model/mock'
-import { MOCK_PRESETS, type MockPresetName, typical } from '../model/presets/mockPresets'
-
-// ---------------------------------------------------------------------------
-// Time helpers — translate a day-of-week + time-of-day into `_now`.
-// Kept simple: we anchor on UTC midnight of a known Monday and add the picked
-// dow/hour/minute. Countdowns (reset timers) read `_now`, so this control just
-// shifts the epoch.
-// ---------------------------------------------------------------------------
-
-// 2026-01-26 is a Monday (UTC). Anchor for the clock control.
-const MONDAY_UTC = Date.UTC(2026, 0, 26, 0, 0, 0) / 1000
-
-/** Compose an epoch (seconds) from ISO day-of-week (1=Mon..7=Sun) + hour + min,
- *  in the given timezone offset is ignored — we treat the picked time as PT wall
- *  clock by approximating with a fixed -8h (PST). Good enough for the scrubber. */
-export function composeNow(dow: number, hour: number, minute: number): number {
-  const dayOffset = (dow - 1) * 86400
-  const todOffset = hour * 3600 + minute * 60
-  const PT_OFFSET = 8 * 3600 // PST is UTC-8
-  return MONDAY_UTC + dayOffset + todOffset + PT_OFFSET
-}
-
-export interface ClockParts {
-  dow: number // 1..7
-  hour: number // 0..23
-  minute: number // 0..59
-}
+import { typical } from '../model/presets/mockPresets'
 
 // ---------------------------------------------------------------------------
 // State
@@ -44,9 +21,7 @@ export interface ClockParts {
 
 export interface MockState {
   mock: MockData
-  presetName: MockPresetName | 'custom'
 
-  applyPreset(name: MockPresetName): void
   reset(): void
   randomize(): void
 
@@ -55,12 +30,9 @@ export interface MockState {
   setSessionPct(pct: number): void
   setWeekPct(pct: number): void
 
-  // reset offsets (minutes from now until reset)
+  // reset offsets (minutes from now until reset) — drive the (XhYm) timers
   setSessionResetMinutes(min: number): void
   setWeekResetMinutes(min: number): void
-
-  // clock
-  setClock(parts: Partial<ClockParts>): void
 
   // presence toggles for optional objects
   toggleRateLimits(on: boolean): void
@@ -80,19 +52,6 @@ export interface MockState {
   setPrState(state: PrReviewState): void
   setGitBranch(branch: string): void
   setColumns(cols: number): void
-}
-
-// Decompose `_now` back into PT wall-clock parts for the clock control.
-export function decomposeNow(now: number): ClockParts {
-  const PT_OFFSET = 8 * 3600
-  const local = now - PT_OFFSET - MONDAY_UTC
-  const dow = ((Math.floor(local / 86400) % 7) + 7) % 7
-  const within = ((local % 86400) + 86400) % 86400
-  return {
-    dow: dow + 1,
-    hour: Math.floor(within / 3600),
-    minute: Math.floor((within % 3600) / 60),
-  }
 }
 
 function pct(n: number): number {
@@ -139,11 +98,9 @@ function randomMock(): MockData {
 
 export const useMockStore = create<MockState>()((set) => ({
   mock: typical(),
-  presetName: 'typical',
 
-  applyPreset: (name) => set({ mock: MOCK_PRESETS[name](), presetName: name }),
-  reset: () => set({ mock: typical(), presetName: 'typical' }),
-  randomize: () => set({ mock: randomMock(), presetName: 'custom' }),
+  reset: () => set({ mock: typical() }),
+  randomize: () => set({ mock: randomMock() }),
 
   setContextPct: (p) =>
     set((st) => {
@@ -157,7 +114,6 @@ export const useMockStore = create<MockState>()((set) => ({
         current_usage: null,
       }
       return {
-        presetName: 'custom',
         mock: {
           ...st.mock,
           context_window: { ...cw, used_percentage: v, remaining_percentage: 100 - v },
@@ -170,7 +126,6 @@ export const useMockStore = create<MockState>()((set) => ({
       const rl = st.mock.rate_limits ?? {}
       const fh = rl.five_hour ?? { used_percentage: v, resets_at: st.mock._now + 7200 }
       return {
-        presetName: 'custom',
         mock: { ...st.mock, rate_limits: { ...rl, five_hour: { ...fh, used_percentage: v } } },
       }
     }),
@@ -180,7 +135,6 @@ export const useMockStore = create<MockState>()((set) => ({
       const rl = st.mock.rate_limits ?? {}
       const sd = rl.seven_day ?? { used_percentage: v, resets_at: st.mock._now + 3 * 86400 }
       return {
-        presetName: 'custom',
         mock: { ...st.mock, rate_limits: { ...rl, seven_day: { ...sd, used_percentage: v } } },
       }
     }),
@@ -190,7 +144,6 @@ export const useMockStore = create<MockState>()((set) => ({
       const rl = st.mock.rate_limits
       if (!rl?.five_hour) return st
       return {
-        presetName: 'custom',
         mock: {
           ...st.mock,
           rate_limits: { ...rl, five_hour: { ...rl.five_hour, resets_at: st.mock._now + min * 60 } },
@@ -202,7 +155,6 @@ export const useMockStore = create<MockState>()((set) => ({
       const rl = st.mock.rate_limits
       if (!rl?.seven_day) return st
       return {
-        presetName: 'custom',
         mock: {
           ...st.mock,
           rate_limits: { ...rl, seven_day: { ...rl.seven_day, resets_at: st.mock._now + min * 60 } },
@@ -210,36 +162,11 @@ export const useMockStore = create<MockState>()((set) => ({
       }
     }),
 
-  setClock: (parts) =>
-    set((st) => {
-      const cur = decomposeNow(st.mock._now)
-      const next = composeNow(
-        parts.dow ?? cur.dow,
-        parts.hour ?? cur.hour,
-        parts.minute ?? cur.minute,
-      )
-      // Shift reset timestamps to remain relative to the new now.
-      const delta = next - st.mock._now
-      const rl = st.mock.rate_limits
-      const shifted = rl
-        ? {
-            five_hour: rl.five_hour
-              ? { ...rl.five_hour, resets_at: rl.five_hour.resets_at + delta }
-              : undefined,
-            seven_day: rl.seven_day
-              ? { ...rl.seven_day, resets_at: rl.seven_day.resets_at + delta }
-              : undefined,
-          }
-        : rl
-      return { presetName: 'custom', mock: { ...st.mock, _now: next, rate_limits: shifted } }
-    }),
-
   toggleRateLimits: (on) =>
     set((st) => {
       if (on) {
         const now = st.mock._now
         return {
-          presetName: 'custom',
           mock: {
             ...st.mock,
             rate_limits: {
@@ -251,42 +178,42 @@ export const useMockStore = create<MockState>()((set) => ({
       }
       const next = { ...st.mock }
       delete next.rate_limits
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   toggleEffort: (on) =>
     set((st) => {
       const next = { ...st.mock }
       if (on) next.effort = { level: 'high' }
       else delete next.effort
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   toggleVim: (on) =>
     set((st) => {
       const next = { ...st.mock }
       if (on) next.vim = { mode: 'NORMAL' }
       else delete next.vim
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   togglePr: (on) =>
     set((st) => {
       const next = { ...st.mock }
       if (on) next.pr = { number: 142, url: 'https://example/pr/142', review_state: 'pending' }
       else delete next.pr
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   toggleSessionName: (on) =>
     set((st) => {
       const next = { ...st.mock }
       if (on) next.session_name = 'refactor-preview'
       else delete next.session_name
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   toggleThinking: (on) =>
     set((st) => {
       const next = { ...st.mock }
       if (on) next.thinking = { enabled: true }
       else delete next.thinking
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   toggleWorktree: (on) =>
     set((st) => {
@@ -294,7 +221,7 @@ export const useMockStore = create<MockState>()((set) => ({
       if (on)
         next.worktree = { name: 'wt-feature', path: '/tmp/wt', original_cwd: '/home/vito/dev' }
       else delete next.worktree
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   toggleCost: (on) =>
     set((st) => {
@@ -308,7 +235,7 @@ export const useMockStore = create<MockState>()((set) => ({
           total_lines_removed: 35,
         }
       else delete next.cost
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
   toggleContext: (on) =>
     set((st) => {
@@ -323,28 +250,26 @@ export const useMockStore = create<MockState>()((set) => ({
           current_usage: null,
         }
       else delete next.context_window
-      return { presetName: 'custom', mock: next }
+      return { mock: next }
     }),
 
   setModelName: (name) =>
     set((st) => ({
-      presetName: 'custom',
       mock: { ...st.mock, model: { ...st.mock.model, display_name: name } },
     })),
   setEffortLevel: (level) =>
-    set((st) => ({ presetName: 'custom', mock: { ...st.mock, effort: { level } } })),
+    set((st) => ({ mock: { ...st.mock, effort: { level } } })),
   setVimMode: (mode) =>
-    set((st) => ({ presetName: 'custom', mock: { ...st.mock, vim: { mode } } })),
+    set((st) => ({ mock: { ...st.mock, vim: { mode } } })),
   setPrState: (state) =>
     set((st) => {
       const pr = st.mock.pr ?? { number: 142, url: 'https://example/pr/142' }
-      return { presetName: 'custom', mock: { ...st.mock, pr: { ...pr, review_state: state } } }
+      return { mock: { ...st.mock, pr: { ...pr, review_state: state } } }
     }),
   setGitBranch: (branch) =>
-    set((st) => ({ presetName: 'custom', mock: { ...st.mock, _gitBranch: branch } })),
+    set((st) => ({ mock: { ...st.mock, _gitBranch: branch } })),
   setColumns: (cols) =>
     set((st) => ({
-      presetName: 'custom',
       mock: { ...st.mock, _columns: Math.max(20, Math.min(200, Math.round(cols))) },
     })),
 }))

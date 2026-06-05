@@ -1617,11 +1617,25 @@ details[open].disclosure > summary::before {
   max-width: 100%;
   overflow-x: auto;
 }
-/* A global tab's panel (build cards / pet / settings / sample data). */
+/* A global tab's panel (build cards / pet / settings / preview scenario). */
 .build-panel {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
+}
+/* Preview-scenario panel: compact three-column grid (usage · session ·
+   present objects) instead of a sparse full-width stack. Collapses to one
+   column on narrow screens via auto-fit. */
+.mock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--sp-4) var(--sp-6);
+  align-items: start;
+}
+.mock-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-1) var(--sp-3);
 }
 /* Contain wide color bands (e.g. the 24-cell grayscale at mobile cell sizes)
    inside the settings well: the band scrolls, the page never does. */
