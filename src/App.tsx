@@ -1,8 +1,9 @@
 // App — the routed shell. '/' renders the marketing Landing page; '#/build'
 // renders the full-screen Builder. Routing is the tiny hash-based useHashRoute
-// (no router lib). The Builder hosts the sticky TerminalMockup preview + compact
-// mock strip, the editor zone (rows canvas + element library), the inspector
-// overlay, the export/import modals, the skip link and the toast provider.
+// (no router lib). The Builder hosts the sticky TerminalMockup preview, the
+// prefab BuildStrip (with the sample-data expander), the editor zone (rows
+// canvas + element library), the inspector overlay, the export/import modals,
+// the skip link and the toast provider.
 
 import { useEffect, useState, type JSX } from 'react'
 import { ToastProvider, useToast } from './ui/Toast'
@@ -11,7 +12,7 @@ import { useOsPref } from './ui/useOsPref'
 import { BuilderBar } from './ui/BuilderBar'
 import { TerminalMockup } from './ui/TerminalMockup'
 import { AnsiPreview } from './ui/AnsiPreview'
-import { MockStrip } from './ui/MockStrip'
+import { BuildStrip } from './ui/BuildStrip'
 import { ElementLibrary } from './ui/ElementLibrary'
 import { PetCard } from './ui/PetCard'
 import { SettingsCard } from './ui/SettingsCard'
@@ -59,14 +60,19 @@ function Builder(): JSX.Element {
 
       <BuilderBar onImport={() => setShowImport(true)} onExport={() => setShowExport(true)} />
 
-      {/* Sticky preview zone: OS switcher + mockup + compact mock strip. */}
+      {/* Sticky preview zone: OS switcher + a wide, roomy mockup. */}
       <div className="builder-hero">
         <div className="builder-hero-inner">
           <TerminalMockup os={os} onOsChange={setOs} showSwitcher title="~ — statusline">
             <AnsiPreview config={config} mock={mock} />
           </TerminalMockup>
-          <MockStrip />
         </div>
+      </div>
+
+      {/* Prefab builds (one-click starting configs) + sample-data expander.
+          Deliberately OUTSIDE the sticky hero so it scrolls away while editing. */}
+      <div className="build-zone">
+        <BuildStrip />
       </div>
 
       {/* Mobile segmented tabs (hidden on desktop). */}
