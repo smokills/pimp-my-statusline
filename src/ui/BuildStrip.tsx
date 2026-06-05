@@ -1,8 +1,8 @@
-// BuildStrip — the GLOBAL zone under the builder preview. Its head is the
-// global control bar: prefab builds on the left, and the config-wide expanders
-// on the right — Pet, Settings (default thresholds) and Sample data — so
-// everything that isn't element-scoped lives here, while the sidebar stays
-// strictly element-scoped (library ⇄ docked inspector).
+// BuildStrip — the GLOBAL zone under the builder preview, organized as a tab
+// group: Builds · Pet · Settings · Sample data. One panel is always visible
+// (Builds preselected); the active tab is highlighted via the design system's
+// segmented control. Everything config-wide lives here, while the sidebar
+// stays strictly element-scoped (library ⇄ docked inspector).
 //
 // Each build card is a complete statusline config (model/presets/builds)
 // rendered as a live mini terminal thumbnail against the CURRENT mock data;
@@ -23,7 +23,7 @@ import { PetCard } from './PetCard'
 import { SettingsCard } from './SettingsCard'
 import { useToast } from './Toast'
 
-type Expander = 'pet' | 'settings' | 'data' | null
+type GlobalTab = 'builds' | 'pet' | 'settings' | 'data'
 
 export function BuildStrip(): JSX.Element {
   const config = useConfigStore((s) => s.config)
@@ -33,9 +33,7 @@ export function BuildStrip(): JSX.Element {
   const mock = useMockStore((s) => s.mock)
   const presetName = useMockStore((s) => s.presetName)
   const { toast } = useToast()
-  // One global expander at a time keeps the zone tidy (they are peers).
-  const [expanded, setExpanded] = useState<Expander>(null)
-  const toggle = (k: Exclude<Expander, null>) => setExpanded((v) => (v === k ? null : k))
+  const [tab, setTab] = useState<GlobalTab>('builds')
 
   // A build is "active" when the canvas equals it verbatim (language aside —
   // that's an export preference, not layout). On first load the persisted
@@ -68,89 +66,87 @@ export function BuildStrip(): JSX.Element {
     toast(`“${build.name}” build applied`)
   }
 
-  // Status cues on the expander buttons, so global state is readable without
-  // opening anything: the active pet, customized thresholds, the mock preset.
+  // Status cues in the tab labels, so global state is readable at a glance:
+  // the active pet, customized thresholds, the mock preset.
   const petStatus = pet.enabled
     ? (PETS.find((p) => p.id === pet.petId)?.label ?? pet.petId)
     : 'off'
   const factoryStops = useMemo(() => JSON.stringify(defaultThresholdStops()), [])
   const customThresholds = JSON.stringify(defaultThresholds) !== factoryStops
 
-  return (
-    <section className="build-strip" aria-label="Prefab builds and global settings">
-      <div className="build-strip-head">
-        <div>
-          <h2 className="section-head">Builds</h2>
-          <span className="comment"> — start from a prefab, then make it yours</span>
-        </div>
-        {/* Config-wide expanders (NOT element-scoped — those live in the sidebar). */}
-        <div className="build-strip-actions">
-          <button
-            type="button"
-            className="btn btn-sm"
-            aria-expanded={expanded === 'pet'}
-            aria-controls="global-pet"
-            onClick={() => toggle('pet')}
-          >
-            Pet · {petStatus}
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            aria-expanded={expanded === 'settings'}
-            aria-controls="global-settings"
-            onClick={() => toggle('settings')}
-          >
-            Settings{customThresholds ? ' · custom' : ''}
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            aria-expanded={expanded === 'data'}
-            aria-controls="global-data"
-            onClick={() => toggle('data')}
-          >
-            Sample data · {presetName}
-          </button>
-        </div>
-      </div>
+  const tabs: { key: GlobalTab; label: string }[] = [
+    { key: 'builds', label: 'Builds' },
+    { key: 'pet', label: `Pet · ${petStatus}` },
+    { key: 'settings', label: `Settings${customThresholds ? ' · custom' : ''}` },
+    { key: 'data', label: `Sample data · ${presetName}` },
+  ]
 
-      <div className="build-cards">
-        {cards.map(({ build, lines, active }) => (
+  return (
+    <section className="build-strip" aria-label="Builds and global settings">
+      <div className="segmented build-tabs" role="tablist" aria-label="Global controls">
+        {tabs.map((t) => (
           <button
-            key={build.id}
+            key={t.key}
             type="button"
-            className="build-card"
-            aria-pressed={active}
-            onClick={() => apply(build)}
+            role="tab"
+            id={`gtab-${t.key}`}
+            aria-selected={tab === t.key}
+            aria-controls={`gpanel-${t.key}`}
+            onClick={() => setTab(t.key)}
           >
-            <pre className="build-mini" aria-hidden="true">
-              {lines.map((line, i) => (
-                <div key={i}>
-                  <AnsiLine line={line} />
-                </div>
-              ))}
-            </pre>
-            <span className="build-name">{build.name}</span>
-            <span className="build-blurb">{build.blurb}</span>
+            {t.label}
           </button>
         ))}
       </div>
 
-      {/* The ids tie each panel to its aria-controls trigger above; the cards
-          inside are <section aria-label>s, i.e. already named regions. */}
-      {expanded === 'pet' && (
-        <div id="global-pet" className="build-data-body">
+      {tab === 'builds' && (
+        <div
+          role="tabpanel"
+          id="gpanel-builds"
+          aria-labelledby="gtab-builds"
+          className="build-panel"
+        >
+          <span className="comment">start from a prefab, then make it yours</span>
+          <div className="build-cards">
+            {cards.map(({ build, lines, active }) => (
+              <button
+                key={build.id}
+                type="button"
+                className="build-card"
+                aria-pressed={active}
+                onClick={() => apply(build)}
+              >
+                <pre className="build-mini" aria-hidden="true">
+                  {lines.map((line, i) => (
+                    <div key={i}>
+                      <AnsiLine line={line} />
+                    </div>
+                  ))}
+                </pre>
+                <span className="build-name">{build.name}</span>
+                <span className="build-blurb">{build.blurb}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {tab === 'pet' && (
+        <div role="tabpanel" id="gpanel-pet" aria-labelledby="gtab-pet" className="build-panel">
           <PetCard />
         </div>
       )}
-      {expanded === 'settings' && (
-        <div id="global-settings" className="build-data-body">
+      {tab === 'settings' && (
+        <div
+          role="tabpanel"
+          id="gpanel-settings"
+          aria-labelledby="gtab-settings"
+          className="build-panel"
+        >
           <SettingsCard />
         </div>
       )}
-      {expanded === 'data' && (
-        <div id="global-data" className="build-data-body">
+      {tab === 'data' && (
+        <div role="tabpanel" id="gpanel-data" aria-labelledby="gtab-data" className="build-panel">
           <MockDataPanel />
         </div>
       )}

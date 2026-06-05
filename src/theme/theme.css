@@ -1610,19 +1610,23 @@ details[open].disclosure > summary::before {
   margin: 0 auto;
   padding: var(--sp-4) var(--sp-6) 0;
 }
-.build-strip-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
+/* The global tab bar (Builds · Pet · Settings · Sample data). Scrolls
+   horizontally on narrow screens instead of wrapping the segmented track. */
+.build-tabs {
   margin-bottom: var(--sp-3);
+  max-width: 100%;
+  overflow-x: auto;
 }
-/* The config-wide expander buttons (Pet / Settings / Sample data). */
-.build-strip-actions {
+/* A global tab's panel (build cards / pet / settings / sample data). */
+.build-panel {
   display: flex;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+/* Contain wide color bands (e.g. the 24-cell grayscale at mobile cell sizes)
+   inside the settings well: the band scrolls, the page never does. */
+.build-panel .well {
+  overflow-x: auto;
 }
 /* Pet roster as a responsive grid: all pets visible side by side in the wide
    build zone, gracefully collapsing to fewer columns on narrow screens. */
@@ -1693,14 +1697,6 @@ details[open].disclosure > summary::before {
   color: var(--fg-muted);
   font-size: var(--fs-12);
   line-height: 1.4;
-}
-.build-data-body {
-  margin-top: var(--sp-3);
-}
-/* Contain wide color bands (e.g. the 24-cell grayscale at mobile cell sizes)
-   inside the settings well: the band scrolls, the page never does. */
-.build-data-body .well {
-  overflow-x: auto;
 }
 
 /* Editor zone: canvas left, library right. */
