@@ -1,7 +1,7 @@
 // App — the routed shell. '/' renders the marketing Landing page; '#/build'
 // renders the full-screen Builder. Routing is the tiny hash-based useHashRoute
 // (no router lib). The Builder hosts the sticky TerminalMockup preview, the
-// BuildStrip (prefab builds + the config-wide Pet / Settings / Sample data
+// BuildStrip (prefab builds + the config-wide Pet / Settings / Preview
 // expanders) and the editor zone (rows canvas + sidebar). The sidebar is
 // strictly element-scoped: the library, swapped for the docked, non-modal
 // element inspector while a chip is selected, so the preview stays live during
@@ -109,7 +109,7 @@ function Builder(): JSX.Element {
       </div>
 
       {/* The global zone: prefab builds + the config-wide Pet / Settings /
-          Sample data expanders. Deliberately OUTSIDE the sticky hero so it
+          Preview-scenario tabs. Deliberately OUTSIDE the sticky hero so it
           scrolls away while editing. */}
       <div className="build-zone">
         <BuildStrip />
@@ -140,7 +140,8 @@ function Builder(): JSX.Element {
             // Editing an element: the docked, non-modal inspector replaces the
             // library. The preview/canvas stay live while editing. The sidebar
             // is strictly element-scoped — the config-wide controls (pet,
-            // settings, sample data) live in the build strip under the preview.
+            // settings, preview scenario) live in the build strip under the
+            // preview.
             <InspectorPanel />
           ) : (
             <>

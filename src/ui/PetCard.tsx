@@ -82,7 +82,7 @@ export function PetCard(): JSX.Element {
           </label>
 
           <span className="comment">
-            drawn at the left of the statusline; scrub ctx in “Sample data” to
+            drawn at the left of the statusline; scrub ctx in the “Preview” tab to
             see it react
           </span>
         </div>

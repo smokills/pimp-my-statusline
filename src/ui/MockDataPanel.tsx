@@ -1,7 +1,8 @@
-// MockDataPanel — the mock-session scrubber under the preview. Preset dropdown,
-// metric sliders (ctx/5h/7d), reset-offset inputs, a clock control (dow + time),
-// presence checkboxes for optional objects, dropdowns, git-branch input, a
-// COLUMNS slider, and RANDOMIZE / RESET. Each change re-renders the preview.
+// MockDataPanel — the "Preview" tab's panel: the scenario scrubber for the live
+// preview. Preset dropdown, metric sliders (ctx/5h/7d), a clock control
+// (dow + time), presence checkboxes for optional objects, dropdowns, git-branch
+// input, a COLUMNS slider, and RANDOMIZE / RESET. Each change re-renders the
+// preview above; none of it touches the config or the exported script.
 
 import type { JSX } from 'react'
 import { IconRefresh } from './icons'
@@ -85,11 +86,17 @@ export function MockDataPanel(): JSX.Element {
   const weekPct = truncPct(mock.rate_limits?.seven_day?.used_percentage)
 
   return (
-    <section className="card card-pad stack" aria-label="Mock session data">
+    <section className="card card-pad stack" aria-label="Preview scenario">
       <div className="spread">
-        <h3 className="section-head">Mock Session</h3>
+        <h3 className="section-head">Preview scenario</h3>
         <span className="comment">{presetName}</span>
       </div>
+
+      <span className="comment">
+        fake session data driving the live preview above — scrub it and watch
+        your statusline react; it never changes your config or the exported
+        script
+      </span>
 
       <label className="field">
         <span className="label">preset</span>

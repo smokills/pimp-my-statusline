@@ -1610,7 +1610,7 @@ details[open].disclosure > summary::before {
   margin: 0 auto;
   padding: var(--sp-4) var(--sp-6) 0;
 }
-/* The global tab bar (Builds · Pet · Settings · Sample data). Scrolls
+/* The global tab bar (Builds · Pet · Settings · Preview). Scrolls
    horizontally on narrow screens instead of wrapping the segmented track. */
 .build-tabs {
   margin-bottom: var(--sp-3);

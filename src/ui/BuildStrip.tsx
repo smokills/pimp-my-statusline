@@ -1,5 +1,5 @@
 // BuildStrip — the GLOBAL zone under the builder preview, organized as a tab
-// group: Builds · Pet · Settings · Sample data. One panel is always visible
+// group: Builds · Pet · Settings · Preview. One panel is always visible
 // (Builds preselected); the active tab is highlighted via the design system's
 // segmented control. Everything config-wide lives here, while the sidebar
 // stays strictly element-scoped (library ⇄ docked inspector).
@@ -78,7 +78,7 @@ export function BuildStrip(): JSX.Element {
     { key: 'builds', label: 'Builds' },
     { key: 'pet', label: `Pet · ${petStatus}` },
     { key: 'settings', label: `Settings${customThresholds ? ' · custom' : ''}` },
-    { key: 'data', label: `Sample data · ${presetName}` },
+    { key: 'data', label: `Preview · ${presetName}` },
   ]
 
   return (
