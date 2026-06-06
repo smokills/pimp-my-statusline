@@ -2,7 +2,7 @@
 
 **A visual workbench for the bottom line of your terminal.**
 
-Build your [Claude Code statusline](https://code.claude.com/docs/en/statusline): drag elements into place, pick colors from the xterm-256 palette, adopt a reactive ASCII pet. Export a clean, readable script you can install in seconds and keep hacking by hand.
+Build your [Claude Code statusline](https://smokills.github.io/pimp-my-statusline): drag elements into place, pick colors from the xterm-256 palette, adopt a reactive ASCII pet. Export a clean, readable script you can install in seconds and keep hacking by hand.
 
 ![Pimp My Statusline, the product landing](docs/screenshot.png)
 
