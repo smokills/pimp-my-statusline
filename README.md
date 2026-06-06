@@ -18,10 +18,6 @@ Build your [Claude Code statusline](https://code.claude.com/docs/en/statusline):
 - **Re-import**: every exported script embeds your config in a comment marker; paste it back to resume editing
 - **Your work survives refresh**: the config persists in localStorage
 
-## Parity, guaranteed
-
-One declarative config drives both the in-browser renderer and the three code generators. CI executes every generated script (bash, python3, node) against mock session JSON with a frozen clock and asserts the output is **byte-identical** to the preview, across a matrix of configs, edge percentages (0%, 100%, ties, `1e-06`) and pet moods.
-
 ## Install an exported script
 
 1. Open the **EXPORT** modal, pick your language, **COPY** or **DOWNLOAD**
