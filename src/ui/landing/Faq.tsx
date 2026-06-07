@@ -25,10 +25,6 @@ export const FAQS: { q: string; a: string }[] = [
     q: 'Can I change my statusline later?',
     a: 'Yes. Your config persists in the browser, and every exported script embeds a re-import marker: paste the script back into the builder to resume editing exactly where you left off.',
   },
-  {
-    q: 'How is this different from ccstatusline?',
-    a: 'ccstatusline is a terminal UI you run with npx. Pimp My Statusline is a web page: you build with live visual feedback, watch the preview react to a simulated session, adopt an ASCII pet, and export a script you can read and edit by hand.',
-  },
 ]
 
 export function Faq(): JSX.Element {

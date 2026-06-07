@@ -50,6 +50,3 @@ The bash export needs `jq`; the python and node exports use the standard library
 
 **Can I change my statusline later?**
 Yes. Your config persists in the browser, and every exported script embeds a re-import marker: paste the script back into the builder to resume editing exactly where you left off.
-
-**How is this different from [ccstatusline](https://github.com/sirmalloc/ccstatusline)?**
-ccstatusline is a terminal UI you run with npx. Pimp My Statusline is a web page: you build with live visual feedback, watch the preview react to a simulated session, adopt an ASCII pet, and export a script you can read and edit by hand.
