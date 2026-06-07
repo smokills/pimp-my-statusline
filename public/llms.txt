@@ -1,0 +1,18 @@
+# Pimp My Statusline
+
+> A free, browser-based visual builder for Claude Code statuslines. Drag elements into rows, style them with xterm-256 colors, adopt a reactive ASCII pet, and export a readable bash, python or node script. No account, no install: everything runs client-side.
+
+Key facts:
+
+- 20 statusline elements: directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars and reset countdowns, cost, duration, lines changed, vim mode, PR info, separators, static text, and more
+- 6 reactive ASCII pets (cactus, cat, dog, owl, robot, fish) that change mood as usage climbs; every frame occupies an identical fixed grid, so the statusline never shifts
+- Exports standalone scripts for bash (+jq), python 3 (stdlib only) and node (stdlib only); the exported script has no dependency on this site
+- The in-browser preview and the exported script produce byte-identical output, verified in CI by executing every generated script against mock session data
+- Exported scripts embed a re-import marker, so a script can be pasted back into the builder to resume editing
+- Work in progress persists in localStorage across visits
+
+## Links
+
+- [Builder](https://smokills.github.io/pimp-my-statusline/#/build): the visual editor
+- [GitHub repository](https://github.com/smokills/pimp-my-statusline): source code, README, install instructions
+- [Claude Code statusline docs](https://code.claude.com/docs/en/statusline): the official feature this tool configures

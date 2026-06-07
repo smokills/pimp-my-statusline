@@ -4,11 +4,110 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pimp My Statusline · Visual Claude Code Statusline Builder</title>
     <meta
       name="description"
-      content="Pimp My Statusline — a visual configurator for Claude Code statuslines. Build, preview and export your statusline script."
+      content="A visual builder for your Claude Code statusline: live preview, ASCII pets, readable bash, python or node exports. Free, no account, runs in your browser."
     />
-    <title>Pimp My Statusline</title>
+    <link rel="canonical" href="https://smokills.github.io/pimp-my-statusline/" />
+
+    <!-- Social cards. Absolute URLs on purpose: scrapers don't resolve relative paths. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Pimp My Statusline" />
+    <meta property="og:title" content="Pimp My Statusline · Visual Claude Code Statusline Builder" />
+    <meta
+      property="og:description"
+      content="A visual builder for your Claude Code statusline: live preview, ASCII pets, readable bash, python or node exports. Free, no account, runs in your browser."
+    />
+    <meta property="og:url" content="https://smokills.github.io/pimp-my-statusline/" />
+    <meta property="og:image" content="https://smokills.github.io/pimp-my-statusline/og.png" />
+    <meta property="og:image:width" content="1440" />
+    <meta property="og:image:height" content="900" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Pimp My Statusline · Visual Claude Code Statusline Builder" />
+    <meta
+      name="twitter:description"
+      content="A visual builder for your Claude Code statusline: live preview, ASCII pets, readable bash, python or node exports. Free, no account, runs in your browser."
+    />
+    <meta name="twitter:image" content="https://smokills.github.io/pimp-my-statusline/og.png" />
+
+    <!-- Static JSON-LD so crawlers see it without executing any JS. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Pimp My Statusline",
+        "url": "https://smokills.github.io/pimp-my-statusline/",
+        "description": "A visual builder for your Claude Code statusline: live preview, ASCII pets, readable bash, python or node exports. Free, no account, runs in your browser.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "screenshot": "https://smokills.github.io/pimp-my-statusline/og.png",
+        "author": {
+          "@type": "Person",
+          "name": "Vito Famiglietti",
+          "url": "https://github.com/smokills"
+        }
+      }
+    </script>
+    <!-- Mirrors the visible FAQ section on the landing page (src/ui/landing/Faq.tsx). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Do I need an account or an install?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The builder runs entirely in your browser and your work saves locally as you go. The only thing that ever leaves the page is the script you choose to export."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I trust the generated script?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Read it before you install it: the export is a short, commented script that reads the session JSON Claude Code pipes in and prints your statusline. No network calls, no telemetry, nothing else."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does the script need to run?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The bash export needs jq; the python and node exports use the standard library only. All three run on macOS and Linux."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I install the exported script?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Save it in ~/.claude/, then point the statusLine command in ~/.claude/settings.json at it. The export modal shows the exact snippet for your language."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I change my statusline later?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Your config persists in the browser, and every exported script embeds a re-import marker: paste the script back into the builder to resume editing exactly where you left off."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is this different from ccstatusline?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "ccstatusline is a terminal UI you run with npx. Pimp My Statusline is a web page: you build with live visual feedback, watch the preview react to a simulated session, adopt an ASCII pet, and export a script you can read and edit by hand."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
