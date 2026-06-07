@@ -55,11 +55,13 @@ const HELPER_TEMPLATES: Partial<Record<HelperId, () => string[]>> = {
   bar: () => [
     '# bar(): filled glyphs then empty glyphs to width w. filled = p*w/100',
     '# (bash integer arithmetic == Math.trunc for non-negative), clamped to w.',
+    '# A non-zero p always lights at least the first cell (1% != 0%).',
     '# Guards the zero-count printf bug (printf \'X%.0s\' with no args prints ONE).',
     'bar() {',
     '  local p="$1" w="$2" filled="$3" empty="$4"',
     '  local f=$(( p * w / 100 ))',
     '  [ "$f" -gt "$w" ] && f="$w"',
+    '  [ "$p" -gt 0 ] && [ "$f" -eq 0 ] && [ "$w" -gt 0 ] && f=1',
     '  local e=$(( w - f )) out=""',
     '  [ "$f" -gt 0 ] && out+=$(printf "${filled}%.0s" $(seq 1 "$f"))',
     '  [ "$e" -gt 0 ] && out+=$(printf "${empty}%.0s" $(seq 1 "$e"))',

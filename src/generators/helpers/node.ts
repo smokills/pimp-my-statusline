@@ -34,7 +34,9 @@ export function nodeSgrWrap(): string[] {
 const HELPER_TEMPLATES: Partial<Record<HelperId, () => string[]>> = {
   bar: () => [
     'const bar = (p, w, filled, empty) => {',
-    '  const f = Math.min(Math.trunc((p * w) / 100), w);',
+    '  let f = Math.min(Math.trunc((p * w) / 100), w);',
+    '  // A non-zero metric always lights at least the first cell (1% != 0%).',
+    '  if (p > 0 && f === 0 && w > 0) f = 1;',
     '  return filled.repeat(f) + empty.repeat(w - f);',
     '};',
   ],

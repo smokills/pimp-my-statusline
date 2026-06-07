@@ -37,10 +37,20 @@ describe('barFill', () => {
   it('clamps above 100', () => {
     expect(barFill(140, 5)).toBe(5) // min(7,5)
   })
-  it('equivalent to pct/20 at w=5 for 0..100', () => {
-    for (let p = 0; p <= 100; p++) {
+  it('lights the first cell for any non-zero pct (1% is not 0%)', () => {
+    expect(barFill(0, 5)).toBe(0) // only a true zero stays empty
+    expect(barFill(1, 5)).toBe(1)
+    expect(barFill(10, 5)).toBe(1)
+    expect(barFill(19, 5)).toBe(1) // would be trunc→0, bumped to 1
+    expect(barFill(20, 5)).toBe(1) // first cell threshold, unchanged
+  })
+  it('matches trunc(pct/20) at w=5 from the first full cell up', () => {
+    for (let p = 20; p <= 100; p++) {
       expect(barFill(p, 5)).toBe(Math.trunc(p / 20))
     }
+  })
+  it('a zero-width bar stays empty even at 100%', () => {
+    expect(barFill(100, 0)).toBe(0)
   })
 })
 
@@ -49,6 +59,9 @@ describe('barString', () => {
     expect(barString(40, 5, '█', '░')).toBe('██░░░')
     expect(barString(0, 5, '█', '░')).toBe('░░░░░')
     expect(barString(100, 5, '█', '░')).toBe('█████')
+  })
+  it('shows one cell at a low non-zero pct', () => {
+    expect(barString(10, 5, '█', '░')).toBe('█░░░░')
   })
 })
 

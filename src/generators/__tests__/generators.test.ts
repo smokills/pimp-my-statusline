@@ -181,6 +181,32 @@ describe('cross-language execution parity', () => {
       })
     }
   }
+
+  // Low-usage band: metrics below the first full cell (10% and 36% on width-5
+  // bars) must light exactly one cell — the "1% is not 0%" rule — and do so
+  // byte-identically across all three scripts and the preview. The named
+  // presets never enter the 1..19% band, so this guards it explicitly.
+  it('low usage lights the first cell identically across targets', async () => {
+    const cfg = defaultConfig()
+    const paths = writeScripts(cfg)
+    const base = MOCK_PRESETS.typical()
+    const mock: MockData = {
+      ...base,
+      rate_limits: {
+        five_hour: { used_percentage: 10, resets_at: base._now + 7200 },
+        seven_day: { used_percentage: 36, resets_at: base._now + 3 * 86400 },
+      },
+    }
+    const outBash = run('bash', paths.bash, mock)
+    expect(run('python', paths.python, mock)).toBe(outBash)
+    expect(run('node', paths.node, mock)).toBe(outBash)
+    if (hasPreview) {
+      const { renderToAnsi } = await import('../../preview/renderToAnsi')
+      expect(outBash).toBe(renderToAnsi(cfg, mock).join('\n') + '\n')
+    }
+    // The 10% session bar shows one filled cell, not an empty bar.
+    expect(outBash).toContain('█░░░░')
+  })
 })
 
 // ---------------------------------------------------------------------------

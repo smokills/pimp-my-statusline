@@ -35,6 +35,9 @@ const HELPER_TEMPLATES: Partial<Record<HelperId, () => string[]>> = {
   bar: () => [
     'def bar(p, w, filled, empty):',
     '    f = min(p * w // 100, w)',
+    '    # A non-zero metric always lights at least the first cell (1% != 0%).',
+    '    if p > 0 and f == 0 and w > 0:',
+    '        f = 1',
     '    return filled * f + empty * (w - f)',
   ],
   timeUntil: () => [

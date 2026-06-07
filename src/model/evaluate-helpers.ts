@@ -17,9 +17,11 @@ export function truncPct(x: number | null | undefined): number {
 }
 
 /** Filled-cell count for a bar of width `w` at percentage `p`.
- *  `min(trunc(p*w/100), w)` — at w=5 this is exactly pct/20. */
+ *  `min(trunc(p*w/100), w)`, but any non-zero metric lights at least the first
+ *  cell, so 1% never looks identical to 0%. Empty means truly zero. */
 export function barFill(p: number, w: number): number {
-  return Math.min(Math.trunc((p * w) / 100), w)
+  const f = Math.min(Math.trunc((p * w) / 100), w)
+  return p > 0 && f === 0 && w > 0 ? 1 : f
 }
 
 /** Render a bar string: `filled` glyphs then `empty` glyphs to width `w`. */
