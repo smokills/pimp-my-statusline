@@ -7,12 +7,7 @@
 // for the parity tests; the UI scrubs a single scenario seeded from typical().
 
 import { create } from 'zustand'
-import type {
-  MockData,
-  EffortLevel,
-  VimMode,
-  PrReviewState,
-} from '../model/mock'
+import type { MockData, EffortLevel } from '../model/mock'
 import { typical } from '../model/presets/mockPresets'
 
 // ---------------------------------------------------------------------------
@@ -37,19 +32,13 @@ export interface MockState {
   // presence toggles for optional objects
   toggleRateLimits(on: boolean): void
   toggleEffort(on: boolean): void
-  toggleVim(on: boolean): void
-  togglePr(on: boolean): void
-  toggleSessionName(on: boolean): void
-  toggleThinking(on: boolean): void
-  toggleWorktree(on: boolean): void
+  toggleOutputStyle(on: boolean): void
   toggleCost(on: boolean): void
   toggleContext(on: boolean): void
 
   // dropdowns / text
   setModelName(name: string): void
   setEffortLevel(level: EffortLevel): void
-  setVimMode(mode: VimMode): void
-  setPrState(state: PrReviewState): void
   setGitBranch(branch: string): void
 }
 
@@ -186,40 +175,11 @@ export const useMockStore = create<MockState>()((set) => ({
       else delete next.effort
       return { mock: next }
     }),
-  toggleVim: (on) =>
+  toggleOutputStyle: (on) =>
     set((st) => {
       const next = { ...st.mock }
-      if (on) next.vim = { mode: 'NORMAL' }
-      else delete next.vim
-      return { mock: next }
-    }),
-  togglePr: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on) next.pr = { number: 142, url: 'https://example/pr/142', review_state: 'pending' }
-      else delete next.pr
-      return { mock: next }
-    }),
-  toggleSessionName: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on) next.session_name = 'refactor-preview'
-      else delete next.session_name
-      return { mock: next }
-    }),
-  toggleThinking: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on) next.thinking = { enabled: true }
-      else delete next.thinking
-      return { mock: next }
-    }),
-  toggleWorktree: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on)
-        next.worktree = { name: 'wt-feature', path: '/tmp/wt', original_cwd: '/home/vito/dev' }
-      else delete next.worktree
+      if (on) next.output_style = { name: 'Explanatory' }
+      else delete next.output_style
       return { mock: next }
     }),
   toggleCost: (on) =>
@@ -258,13 +218,6 @@ export const useMockStore = create<MockState>()((set) => ({
     })),
   setEffortLevel: (level) =>
     set((st) => ({ mock: { ...st.mock, effort: { level } } })),
-  setVimMode: (mode) =>
-    set((st) => ({ mock: { ...st.mock, vim: { mode } } })),
-  setPrState: (state) =>
-    set((st) => {
-      const pr = st.mock.pr ?? { number: 142, url: 'https://example/pr/142' }
-      return { mock: { ...st.mock, pr: { ...pr, review_state: state } } }
-    }),
   setGitBranch: (branch) =>
     set((st) => ({ mock: { ...st.mock, _gitBranch: branch } })),
 }))

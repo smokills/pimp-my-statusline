@@ -4,7 +4,7 @@
 
 Key facts:
 
-- 20 statusline elements: directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars and reset countdowns, cost, duration, lines changed, vim mode, PR info, separators, static text, and more
+- 15 statusline elements: directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars and reset countdowns, cost, duration, lines changed, output style, agent, version, separators, static text
 - 6 reactive ASCII pets (cactus, cat, dog, owl, robot, fish) that change mood as usage climbs; every frame occupies an identical fixed grid, so the statusline never shifts
 - Exports standalone scripts for bash (+jq), python 3 (stdlib only) and node (stdlib only); the exported script has no dependency on this site
 - The in-browser preview and the exported script produce byte-identical output, verified in CI by executing every generated script against mock session data

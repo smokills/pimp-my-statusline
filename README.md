@@ -9,7 +9,7 @@ Build your [Claude Code statusline](https://pimpmystatusline.dev): drag elements
 ## Features
 
 - **Live terminal preview**: wrapped in the window chrome of your OS, it renders the exact bytes your terminal will print, fed by a scrubbable mock session (drag the context % slider, watch the bars and the pet react)
-- **Element library**: directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars + reset countdowns, cost, duration, lines ±, vim mode, PR info, and more
+- **Element library**: directory, git branch, model, effort, context window, 5h/7d rate limits with gauge bars + reset countdowns, cost, duration, lines ±, output style, agent, version, and more
 - **Multi-row layout**: arrange elements across as many rows as you like, with drag & drop (keyboard accessible)
 - **Per-element styling**: fixed xterm-256 colors, basic ANSI-16 colors, or threshold mode (green → yellow → red as a percentage climbs, with editable breakpoints)
 - **Display variants**: gauge bar, percentage and countdown timer per metric, with configurable bar width

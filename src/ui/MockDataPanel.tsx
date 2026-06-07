@@ -6,12 +6,10 @@
 import type { JSX } from 'react'
 import { IconRefresh } from './icons'
 import { useMockStore } from '../store/mockStore'
-import type { EffortLevel, VimMode, PrReviewState } from '../model/mock'
+import type { EffortLevel } from '../model/mock'
 import { truncPct } from '../model/evaluate-helpers'
 
 const EFFORTS: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max']
-const VIM_MODES: VimMode[] = ['NORMAL', 'INSERT', 'VISUAL', 'VISUAL LINE']
-const PR_STATES: PrReviewState[] = ['approved', 'pending', 'changes_requested', 'draft']
 
 /** Compact duration for the resets-in scrubbers: 90 → "1h30m", 3000 → "2d2h". */
 function fmtMinutes(min: number): string {
@@ -185,34 +183,6 @@ export function MockDataPanel(): JSX.Element {
               </select>
             </label>
           )}
-          {mock.vim && (
-            <label className="field">
-              <span className="label">vim</span>
-              <select
-                className="select-input"
-                value={mock.vim.mode}
-                onChange={(e) => s.setVimMode(e.target.value as VimMode)}
-              >
-                {VIM_MODES.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          {mock.pr && (
-            <label className="field">
-              <span className="label">pr state</span>
-              <select
-                className="select-input"
-                value={mock.pr.review_state ?? 'pending'}
-                onChange={(e) => s.setPrState(e.target.value as PrReviewState)}
-              >
-                {PR_STATES.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
-            </label>
-          )}
           <label className="field">
             <span className="label">git branch</span>
             <input
@@ -233,11 +203,11 @@ export function MockDataPanel(): JSX.Element {
             <Toggle label="rate_limits" checked={!!mock.rate_limits} onChange={s.toggleRateLimits} />
             <Toggle label="cost" checked={!!mock.cost} onChange={s.toggleCost} />
             <Toggle label="effort" checked={!!mock.effort} onChange={s.toggleEffort} />
-            <Toggle label="vim" checked={!!mock.vim} onChange={s.toggleVim} />
-            <Toggle label="pr" checked={!!mock.pr} onChange={s.togglePr} />
-            <Toggle label="session_name" checked={!!mock.session_name} onChange={s.toggleSessionName} />
-            <Toggle label="thinking" checked={!!mock.thinking} onChange={s.toggleThinking} />
-            <Toggle label="worktree" checked={!!mock.worktree} onChange={s.toggleWorktree} />
+            <Toggle
+              label="output_style"
+              checked={!!mock.output_style}
+              onChange={s.toggleOutputStyle}
+            />
           </div>
         </div>
       </div>

@@ -56,14 +56,28 @@ export interface LibraryEntry {
   category: Category
 }
 
+// Claude Code already surfaces these natively (vim mode, session name, PR,
+// thinking indicator, worktree), so we don't offer them as statusline elements.
+// The segment types still exist so older exported scripts re-import cleanly;
+// they're just kept out of the picker.
+const HIDDEN_FROM_LIBRARY: ReadonlySet<SegmentType> = new Set([
+  'vimMode',
+  'sessionName',
+  'pr',
+  'thinking',
+  'worktree',
+])
+
 export function libraryEntries(): LibraryEntry[] {
-  return (Object.keys(SEGMENTS) as SegmentType[]).map((type) => ({
-    type,
-    label: SEGMENTS[type].label,
-    description: SEGMENTS[type].description,
-    metric: SEGMENTS[type].metric,
-    category: CATEGORY_OF[type],
-  }))
+  return (Object.keys(SEGMENTS) as SegmentType[])
+    .filter((type) => !HIDDEN_FROM_LIBRARY.has(type))
+    .map((type) => ({
+      type,
+      label: SEGMENTS[type].label,
+      description: SEGMENTS[type].description,
+      metric: SEGMENTS[type].metric,
+      category: CATEGORY_OF[type],
+    }))
 }
 
 /** Count placed instances per segment type across all rows. */
