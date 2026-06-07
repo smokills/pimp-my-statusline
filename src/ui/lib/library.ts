@@ -137,22 +137,3 @@ export function primaryStyle(seg: Segment): TextStyle | undefined {
   }
 }
 
-/** Tiny glyph summary of a segment's variant, for the chip. */
-export function variantGlyphs(seg: Segment): string {
-  switch (seg.type) {
-    case 'context':
-    case 'session':
-    case 'week': {
-      const map: Record<string, string> = { bar: '▓', percent: '%', timer: '⏱' }
-      return seg.parts.map((p) => map[p] ?? '').join('')
-    }
-    case 'directory':
-      return seg.dirStyle === 'basename' ? '·/' : seg.dirStyle === 'full' ? '/…' : '~/'
-    case 'separator':
-      return seg.fill
-    case 'lines':
-      return seg.linesStyle === 'addedOnly' ? '+' : seg.linesStyle === 'removedOnly' ? '−' : '±'
-    default:
-      return ''
-  }
-}

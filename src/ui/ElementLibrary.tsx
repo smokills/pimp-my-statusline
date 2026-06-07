@@ -50,7 +50,6 @@ function LibraryItem({
       }}
     >
       <span className="row-flex" style={{ gap: 6 }}>
-        {entry.metric && <span className="glyphs" aria-hidden="true">▓</span>}
         <span>{entry.label}</span>
       </span>
       {placed > 0 && (

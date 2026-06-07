@@ -1,9 +1,7 @@
 // BuilderBar — the slim top bar for the builder route. Wordmark links back to
-// the landing page; the right side carries IMPORT / EXPORT and a language
-// indicator.
+// the landing page; the right side carries BUILDS / IMPORT / EXPORT.
 
 import type { JSX } from 'react'
-import { useConfigStore } from '../store/configStore'
 import { IconTerminal, IconUpload, IconDownload, IconLayout } from './icons'
 
 export function BuilderBar({
@@ -15,8 +13,6 @@ export function BuilderBar({
   onImport: () => void
   onExport: () => void
 }): JSX.Element {
-  const language = useConfigStore((s) => s.config.language)
-
   return (
     <header className="builder-bar">
       <a href="#/" className="wordmark" aria-label="Back to home">
@@ -34,9 +30,6 @@ export function BuilderBar({
 
       <div style={{ flex: 1 }} />
 
-      <span className="label mobile-hide" title="The language of the config you are editing">
-        lang: <span className="accent">{language}</span>
-      </span>
       <button
         type="button"
         className="btn btn-sm"

@@ -6,7 +6,7 @@
 import type { JSX } from 'react'
 import { useConfigStore } from '../store/configStore'
 import { SEGMENTS } from '../model/segments'
-import { primaryStyle, variantGlyphs } from './lib/library'
+import { primaryStyle } from './lib/library'
 import { styleSwatchHex } from './lib/color'
 
 export function PlacedSegmentPicker(): JSX.Element {
@@ -28,31 +28,23 @@ export function PlacedSegmentPicker(): JSX.Element {
                 row {i + 1}
               </span>
               <div className="row-flex">
-                {row.segments.map((seg) => {
-                  const glyphs = variantGlyphs(seg)
-                  return (
-                    <button
-                      key={seg.id}
-                      type="button"
-                      className="chip"
-                      style={{ opacity: seg.enabled ? 1 : 0.5 }}
-                      onClick={() => selectSegment(seg.id)}
-                      aria-label={`edit ${SEGMENTS[seg.type].label}`}
-                    >
-                      <span
-                        className="swatch"
-                        style={{ background: styleSwatchHex(primaryStyle(seg)) }}
-                        aria-hidden="true"
-                      />
-                      <span>{SEGMENTS[seg.type].label}</span>
-                      {glyphs && (
-                        <span className="glyphs" aria-hidden="true">
-                          {glyphs}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
+                {row.segments.map((seg) => (
+                  <button
+                    key={seg.id}
+                    type="button"
+                    className="chip"
+                    style={{ opacity: seg.enabled ? 1 : 0.5 }}
+                    onClick={() => selectSegment(seg.id)}
+                    aria-label={`edit ${SEGMENTS[seg.type].label}`}
+                  >
+                    <span
+                      className="swatch"
+                      style={{ background: styleSwatchHex(primaryStyle(seg)) }}
+                      aria-hidden="true"
+                    />
+                    <span>{SEGMENTS[seg.type].label}</span>
+                  </button>
+                ))}
               </div>
             </div>
           ),
