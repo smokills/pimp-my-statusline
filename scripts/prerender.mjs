@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url'
 const execFileAsync = promisify(execFile)
 
 const DIST = fileURLToPath(new URL('../dist', import.meta.url))
-const BASE = '/pimp-my-statusline/'
+const BASE = '/'
 const PORT = 4179
 
 const MIME = {
@@ -35,7 +35,7 @@ const MIME = {
 }
 
 // Minimal static server for dist/ mounted at the production base path, so the
-// built absolute asset URLs (/pimp-my-statusline/assets/…) resolve as deployed.
+// built absolute asset URLs (/assets/…) resolve as deployed.
 const server = createServer((req, res) => {
   const path = (req.url ?? '').split('?')[0]
   if (!path.startsWith(BASE)) {

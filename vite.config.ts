@@ -2,10 +2,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// base must match the GitHub Pages project path. If the site ever moves to a
-// user page or a custom domain, change this to '/'.
+// base is '/' because the site is served at the apex of a custom domain
+// (pimpmystatusline.dev). It was '/pimp-my-statusline/' while on the GitHub
+// Pages project path.
 export default defineConfig({
-  base: '/pimp-my-statusline/',
+  base: '/',
   plugins: [react()],
   test: {
     environment: 'node',

@@ -13,6 +13,6 @@ Key facts:
 
 ## Links
 
-- [Builder](https://smokills.github.io/pimp-my-statusline/#/build): the visual editor
+- [Builder](https://pimpmystatusline.dev/#/build): the visual editor
 - [GitHub repository](https://github.com/smokills/pimp-my-statusline): source code, README, install instructions
 - [Claude Code statusline docs](https://code.claude.com/docs/en/statusline): the official feature this tool configures

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://smokills.github.io/pimp-my-statusline/sitemap.xml
+Sitemap: https://pimpmystatusline.dev/sitemap.xml
