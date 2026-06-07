@@ -19,6 +19,9 @@ export function Footer(): JSX.Element {
           <span className="muted" style={{ fontSize: 'var(--fs-13)' }}>
             Built for Claude Code.
           </span>
+          <span className="muted" style={{ fontSize: 'var(--fs-13)' }}>
+            no cookies · no accounts · no tracking
+          </span>
         </div>
 
         <nav className="foot-links" aria-label="Footer">
@@ -26,6 +29,7 @@ export function Footer(): JSX.Element {
           <a href="#how">How it works</a>
           <a href="#faq">FAQ</a>
           <a href="#/build">Builder</a>
+          <a href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy</a>
           <a href={GITHUB_URL} target="_blank" rel="noreferrer noopener">
             GitHub
           </a>
