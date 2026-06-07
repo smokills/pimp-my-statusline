@@ -16,7 +16,7 @@ export function CtaBand(): JSX.Element {
           </h2>
           <div className="hero-ctas" style={{ marginBottom: 0 }}>
             <a href="#/build" className="btn btn-primary btn-lg">
-              Open the builder
+              Start building
               <IconArrowRight />
             </a>
             <a

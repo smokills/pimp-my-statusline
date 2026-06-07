@@ -31,7 +31,7 @@ export function Nav(): JSX.Element {
             GitHub
           </a>
           <a href="#/build" className="btn btn-primary btn-sm">
-            Open the builder
+            Start building
             <IconArrowRight />
           </a>
         </nav>

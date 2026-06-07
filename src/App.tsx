@@ -1,12 +1,11 @@
 // App — the routed shell. '/' renders the marketing Landing page; '#/build'
 // renders the full-screen Builder. Routing is the tiny hash-based useHashRoute
 // (no router lib). The Builder hosts the sticky TerminalMockup preview, the
-// BuildStrip (prefab builds + the config-wide Pet / Settings / Preview
-// expanders) and the editor zone (rows canvas + sidebar). The sidebar is
-// strictly element-scoped: the library, swapped for the docked, non-modal
-// element inspector while a chip is selected, so the preview stays live during
-// editing. It also owns the export/import modals, the skip link and the toast
-// provider.
+// preview-scenario scrubber, the pet companion section + rows canvas, and the
+// left column (element library, swapped for the docked non-modal inspector
+// while a chip is selected). Prefab starting points live in the StartModal,
+// which auto-opens on the first visit. It also owns the start/export/import
+// modals, the skip link and the toast provider.
 
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { ToastProvider, useToast } from './ui/Toast'
@@ -15,7 +14,8 @@ import { detectOs } from './ui/detectOs'
 import { BuilderBar } from './ui/BuilderBar'
 import { TerminalMockup } from './ui/TerminalMockup'
 import { AnsiPreview } from './ui/AnsiPreview'
-import { BuildStrip } from './ui/BuildStrip'
+import { MockDataPanel } from './ui/MockDataPanel'
+import { StartModal } from './ui/StartModal'
 import { ElementLibrary } from './ui/ElementLibrary'
 import { RowCanvas } from './ui/RowCanvas'
 import { PetCard } from './ui/PetCard'
@@ -41,14 +41,38 @@ function PickerCard(): JSX.Element {
   )
 }
 
+// The starting-point modal auto-opens once, on the very first builder visit.
+// A persisted flag keeps it from reappearing — and from offering to replace a
+// returning user's saved work uninvited.
+const ONBOARD_KEY = 'pms:onboarded:v1'
+function firstBuilderVisit(): boolean {
+  try {
+    return localStorage.getItem(ONBOARD_KEY) == null
+  } catch {
+    return false
+  }
+}
+
 function Builder(): JSX.Element {
   const { toast } = useToast()
   // The mockup chrome follows the visitor's OS — detected once, no switcher.
   const os = useMemo(() => detectOs(), [])
   const [showExport, setShowExport] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showStart, setShowStart] = useState(firstBuilderVisit)
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null)
   const [mobileTab, setMobileTab] = useState<MobileTab>('build')
+
+  // Dismiss the starting-point modal and remember it, so it never auto-opens
+  // again. Dismissing never changes the config (only "Start building" does).
+  const closeStart = () => {
+    try {
+      localStorage.setItem(ONBOARD_KEY, '1')
+    } catch {
+      /* private mode / storage off — just hide it for this session */
+    }
+    setShowStart(false)
+  }
 
   const config = useConfigStore((s) => s.config)
   const mock = useMockStore((s) => s.mock)
@@ -99,7 +123,11 @@ function Builder(): JSX.Element {
         Skip to canvas
       </a>
 
-      <BuilderBar onImport={() => setShowImport(true)} onExport={() => setShowExport(true)} />
+      <BuilderBar
+        onBuilds={() => setShowStart(true)}
+        onImport={() => setShowImport(true)}
+        onExport={() => setShowExport(true)}
+      />
 
       {/* Sticky preview zone: a wide, roomy mockup in the visitor's OS chrome. */}
       <div className="builder-hero" ref={heroRef}>
@@ -110,11 +138,12 @@ function Builder(): JSX.Element {
         </div>
       </div>
 
-      {/* The global zone: prefab builds + the config-wide Pet / Settings /
-          Preview-scenario tabs. Deliberately OUTSIDE the sticky hero so it
-          scrolls away while editing. */}
+      {/* Below the sticky hero: the preview-scenario scrubber (fake session
+          data driving the live preview). Prefab builds moved to the StartModal;
+          the pet lives above the rows. Deliberately OUTSIDE the sticky hero so
+          it scrolls away while editing. */}
       <div className="build-zone">
-        <BuildStrip />
+        <MockDataPanel />
       </div>
 
       {/* Mobile segmented tabs (hidden on desktop). */}
@@ -139,10 +168,9 @@ function Builder(): JSX.Element {
         <div className={`editor-library ${mobileTab === 'style' ? '' : 'mobile-hide'}`}>
           {selected ? (
             // Editing an element: the docked, non-modal inspector replaces the
-            // library. The preview/canvas stay live while editing. The sidebar
-            // is strictly element-scoped — the config-wide controls (pet,
-            // settings, preview scenario) live in the build strip under the
-            // preview.
+            // library. The preview/canvas stay live while editing. The inspector
+            // is strictly per-element; the pet has its own section above the
+            // rows and starting points live in the StartModal.
             <InspectorPanel />
           ) : (
             <>
@@ -162,6 +190,15 @@ function Builder(): JSX.Element {
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+      {showStart && (
+        <StartModal
+          onClose={closeStart}
+          onImport={() => {
+            closeStart()
+            setShowImport(true)
+          }}
+        />
+      )}
     </div>
   )
 }

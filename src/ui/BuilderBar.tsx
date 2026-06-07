@@ -4,12 +4,14 @@
 
 import type { JSX } from 'react'
 import { useConfigStore } from '../store/configStore'
-import { IconTerminal, IconUpload, IconDownload } from './icons'
+import { IconTerminal, IconUpload, IconDownload, IconLayout } from './icons'
 
 export function BuilderBar({
+  onBuilds,
   onImport,
   onExport,
 }: {
+  onBuilds: () => void
   onImport: () => void
   onExport: () => void
 }): JSX.Element {
@@ -35,6 +37,15 @@ export function BuilderBar({
       <span className="label mobile-hide" title="The language of the config you are editing">
         lang: <span className="accent">{language}</span>
       </span>
+      <button
+        type="button"
+        className="btn btn-sm"
+        onClick={onBuilds}
+        title="Choose a starting point (prefab builds, scratch, import)"
+      >
+        <IconLayout />
+        <span className="mobile-hide">Builds</span>
+      </button>
       <button type="button" className="btn btn-sm" onClick={onImport}>
         <IconUpload />
         <span className="mobile-hide">Import</span>

@@ -89,8 +89,9 @@ try {
   )
 
   // Never deploy a silently-blank prerender: the landing copy and the module
-  // script (which boots the real app) must both be in the output.
-  if (!html.includes('hero-sub') || !html.includes('Open the builder')) {
+  // script (which boots the real app) must both be in the output. Checks use
+  // stable classNames (not CTA copy, which changes) to avoid false failures.
+  if (!html.includes('hero-sub') || !html.includes('hero-ctas')) {
     throw new Error('prerender: landing content missing from the dumped DOM')
   }
   if (!html.includes(`${BASE}assets/`)) {

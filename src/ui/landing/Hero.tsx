@@ -102,7 +102,7 @@ export function Hero(): JSX.Element {
 
         <div className="hero-ctas">
           <a href="#/build" className="btn btn-primary btn-lg">
-            Open the builder
+            Start building
             <IconArrowRight />
           </a>
           <a

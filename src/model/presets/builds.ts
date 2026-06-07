@@ -5,7 +5,7 @@
 // must be per-instance — same rule as defaultPreset).
 //
 // A build replaces rows + pet + global wholesale; the user's language choice is
-// an export preference and is preserved by the caller (BuildStrip).
+// an export preference and is preserved by the caller (StartModal).
 
 import type {
   DirectorySegment,
@@ -228,6 +228,17 @@ function costWatcher(): StatuslineConfig {
       { id: 'cw-r1', segments: [dir('cw-dir'), branch('cw-branch')], joiner: '  ' },
       { id: 'cw-r2', segments: [model('cw-model'), cost, duration, lines], joiner: '  ' },
     ],
+    pet: petOff(),
+    global: globals(),
+  }
+}
+
+/** Start from scratch — one empty row, no pet. The user composes from zero. */
+export function emptyConfig(): StatuslineConfig {
+  return {
+    version: 1,
+    language: 'bash',
+    rows: [{ id: 'scratch-r1', segments: [], joiner: '  ' }],
     pet: petOff(),
     global: globals(),
   }
