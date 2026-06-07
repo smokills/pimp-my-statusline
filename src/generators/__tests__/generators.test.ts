@@ -210,6 +210,56 @@ describe('cross-language execution parity', () => {
 })
 
 // ---------------------------------------------------------------------------
+// 4b. Pet metric binding: the exported script reads the metric the user chose
+// ---------------------------------------------------------------------------
+
+describe('pet metric binding parity', () => {
+  const hasPreview = existsSync(join(process.cwd(), 'src/preview/renderToAnsi.ts'))
+
+  // A mock where the three pet metrics sit in DISTINCT mood bands, so the bound
+  // metric visibly decides the pet frame: context=15 (calm), 5h=65 (wary),
+  // 7d=95 (panic). If a generator read the wrong field, its pet frame — and so
+  // its bytes — would diverge from the preview and from the other languages.
+  const mockBase = MOCK_PRESETS.typical()
+  const mock: MockData = {
+    ...mockBase,
+    context_window: { ...mockBase.context_window!, used_percentage: 15, remaining_percentage: 85 },
+    rate_limits: {
+      five_hour: { used_percentage: 65, resets_at: mockBase._now + 7200 },
+      seven_day: { used_percentage: 95, resets_at: mockBase._now + 3 * 86400 },
+    },
+  }
+  const metrics = ['context', 'session_5h', 'week_7d'] as const
+  const petConfig = (metric: (typeof metrics)[number]): StatuslineConfig => {
+    const base = defaultConfig()
+    return { ...base, pet: { ...base.pet, enabled: true, petId: 'cactus', metric } }
+  }
+
+  for (const metric of metrics) {
+    it(`pet bound to ${metric}: bash == python == node${hasPreview ? ' == renderToAnsi' : ''}`, async () => {
+      const cfg = petConfig(metric)
+      const paths = writeScripts(cfg)
+      const outBash = run('bash', paths.bash, mock)
+      expect(run('python', paths.python, mock)).toBe(outBash)
+      expect(run('node', paths.node, mock)).toBe(outBash)
+      if (hasPreview) {
+        const { renderToAnsi } = await import('../../preview/renderToAnsi')
+        expect(outBash).toBe(renderToAnsi(cfg, mock).join('\n') + '\n')
+      }
+    })
+  }
+
+  // Guard the guard: the three metrics must yield three different renders, or
+  // the parity above would prove nothing.
+  it('the bound metric actually changes the pet frame', async () => {
+    if (!hasPreview) return
+    const { renderToAnsi } = await import('../../preview/renderToAnsi')
+    const renders = new Set(metrics.map((m) => renderToAnsi(petConfig(m), mock).join('\n')))
+    expect(renders.size).toBe(3)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // 5. Pet: width invariance + agreement across pcts
 // ---------------------------------------------------------------------------
 
