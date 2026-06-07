@@ -20,7 +20,7 @@ const FEATURES: { icon: (p: { className?: string }) => JSX.Element; title: strin
   {
     icon: IconLayout,
     title: 'Drag & drop rows',
-    body: 'Compose multi-row layouts by dragging elements between rows. Keyboard reordering is fully supported.',
+    body: 'Compose multi-row layouts by dragging elements between rows, and drag whole rows to reorder them.',
   },
   {
     icon: IconSparkle,
@@ -30,7 +30,7 @@ const FEATURES: { icon: (p: { className?: string }) => JSX.Element; title: strin
   {
     icon: IconCode,
     title: 'Export bash · python · node',
-    body: 'Generate a clean, readable, hand-editable script in your shell of choice — no runtime dependency on this app.',
+    body: 'Generate a clean, readable, hand-editable script in your shell of choice. Export it and run it wherever you want.',
   },
   {
     icon: IconPalette,
@@ -51,9 +51,9 @@ export function FeaturesGrid(): JSX.Element {
         <div className="section-intro">
           <span className="eyebrow">Features</span>
           <h2>
-            Everything you need to <span className="accent">ship a sharper statusline</span>
+            Build it visually. <span className="accent">Install it anywhere.</span>
           </h2>
-          <p>A focused toolkit for Claude Code statuslines — build it visually, see it instantly, export it cleanly.</p>
+          <p>A focused toolkit for Claude Code statuslines: live preview, full color control, reactive pets, readable exports.</p>
         </div>
 
         <div className="features">

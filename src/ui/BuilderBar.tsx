@@ -26,7 +26,7 @@ export function BuilderBar({
         </span>
       </a>
       {/* Same beta patch as the landing nav, outside the home link. */}
-      <span className="beta-badge" title="still in beta — expect rough edges">
+      <span className="beta-badge" title="still in beta: expect rough edges">
         beta
       </span>
 

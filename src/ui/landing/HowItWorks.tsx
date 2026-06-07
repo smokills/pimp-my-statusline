@@ -78,7 +78,7 @@ export function HowItWorks(): JSX.Element {
               <h3>Compose your layout</h3>
               <p>
                 Drag elements from the library into rows. Mix directory, git, model, context and
-                rate-limit metrics, separators and static text — arrange them exactly how you like.
+                rate-limit metrics, separators and static text, arranged however you like.
               </p>
             </div>
             <div className="step-visual">
