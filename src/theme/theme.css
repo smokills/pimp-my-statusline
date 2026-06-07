@@ -1690,26 +1690,19 @@ details[open].disclosure > summary::before {
   min-height: 168px;
 }
 
-/* Prefab builds strip (under the preview): each card is a complete config
-   rendered as a live mini terminal; clicking it replaces the canvas. */
-.build-zone {
-  max-width: 1280px;
-  width: 100%;
-  margin: 0 auto;
-  padding: var(--sp-4) var(--sp-6) 0;
+/* Preview data controls, docked under the mockup inside the sticky hero. A slim
+   disclosure: collapsed it is a labelled bar; open it reveals the scrubber right
+   below the preview it drives. */
+.preview-tools {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: var(--sp-3) var(--sp-4);
 }
-/* The global tab bar (Builds · Pet · Settings · Preview). Scrolls
-   horizontally on narrow screens instead of wrapping the segmented track. */
-.build-tabs {
-  margin-bottom: var(--sp-3);
-  max-width: 100%;
-  overflow-x: auto;
-}
-/* A global tab's panel (build cards / pet / settings / preview scenario). */
-.build-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
+.preview-tools > summary {
+  color: var(--fg-2);
+  font-weight: 600;
+  font-size: var(--fs-13);
 }
 /* Preview-scenario panel: compact three-column grid (usage · session ·
    present objects) instead of a sparse full-width stack. Collapses to one
@@ -1725,13 +1718,8 @@ details[open].disclosure > summary::before {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-1) var(--sp-3);
 }
-/* Contain wide color bands (e.g. the 24-cell grayscale at mobile cell sizes)
-   inside the settings well: the band scrolls, the page never does. */
-.build-panel .well {
-  overflow-x: auto;
-}
-/* Pet roster as a responsive grid: all pets visible side by side in the wide
-   build zone, gracefully collapsing to fewer columns on narrow screens. */
+/* Pet roster as a responsive grid: all pets visible side by side, gracefully
+   collapsing to fewer columns on narrow screens. */
 .pet-roster {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -1959,9 +1947,6 @@ details[open].disclosure > summary::before {
     font-size: var(--fs-14);
     padding: var(--sp-3);
     min-height: 0;
-  }
-  .build-zone {
-    padding: var(--sp-3) var(--sp-4) 0;
   }
   .mobile-tabs {
     display: flex;

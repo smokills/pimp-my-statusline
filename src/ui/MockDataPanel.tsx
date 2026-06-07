@@ -101,9 +101,14 @@ export function MockDataPanel(): JSX.Element {
     : 0
 
   return (
-    <section className="card card-pad stack" aria-label="Preview scenario">
+    <details className="preview-tools stack disclosure">
+      <summary style={{ cursor: 'pointer' }}>Adjust preview data</summary>
+
       <div className="spread">
-        <h3 className="section-head">Preview scenario</h3>
+        <span className="comment" style={{ maxWidth: '52ch' }}>
+          fake session data driving the live preview above: scrub it and watch your
+          statusline react. It never changes your config or the exported script.
+        </span>
         <div className="row-flex">
           <button type="button" className="btn btn-sm" onClick={s.randomize}>
             Randomize
@@ -114,12 +119,6 @@ export function MockDataPanel(): JSX.Element {
           </button>
         </div>
       </div>
-
-      <span className="comment">
-        fake session data driving the live preview above — scrub it and watch
-        your statusline react; it never changes your config or the exported
-        script
-      </span>
 
       <div className="mock-grid">
         {/* --- usage: the metric percentages + their reset countdowns --- */}
@@ -242,6 +241,6 @@ export function MockDataPanel(): JSX.Element {
           </div>
         </div>
       </div>
-    </section>
+    </details>
   )
 }

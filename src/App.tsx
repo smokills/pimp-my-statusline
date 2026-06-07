@@ -129,21 +129,16 @@ function Builder(): JSX.Element {
         onExport={() => setShowExport(true)}
       />
 
-      {/* Sticky preview zone: a wide, roomy mockup in the visitor's OS chrome. */}
+      {/* Sticky preview zone: the OS-chrome mockup plus its own (collapsed)
+          data controls, docked right beneath it so "adjust preview data" reads
+          as belonging to the preview it drives — not a stray band. */}
       <div className="builder-hero" ref={heroRef}>
         <div className="builder-hero-inner">
           <TerminalMockup os={os} title="~ — statusline">
             <AnsiPreview config={config} mock={mock} />
           </TerminalMockup>
+          <MockDataPanel />
         </div>
-      </div>
-
-      {/* Below the sticky hero: the preview-scenario scrubber (fake session
-          data driving the live preview). Prefab builds moved to the StartModal;
-          the pet lives above the rows. Deliberately OUTSIDE the sticky hero so
-          it scrolls away while editing. */}
-      <div className="build-zone">
-        <MockDataPanel />
       </div>
 
       {/* Mobile segmented tabs (hidden on desktop). */}
