@@ -1,12 +1,11 @@
-// PetCard — the global pet configuration, shown as a collapsible section ABOVE
-// the rows in the canvas (not in a tab). The pet is not a row element: it has
-// its own enable/disable toggle, and when enabled it is ALWAYS drawn at the
-// left of the statusline with the rows following to its right.
+// PetCard — the global pet configuration, shown above the rows in the canvas
+// (not in a tab). The pet is not a row element: when enabled it is ALWAYS drawn
+// at the left of the statusline, with the rows following to its right.
 //
-// Off = collapsed (toggle + one-line hint). On = the roster, the metric that
-// drives its mood, and the gap. The live result is visible in the terminal
-// preview above: scrub the matching mock slider in the "Preview" tab and watch
-// the pet react.
+// A disclosure, collapsed by default: the summary always shows the status
+// ("· off" / "· cat") so it stays compact instead of exploding the viewport.
+// Expand it to flip the toggle, pick a pet, choose the mood metric and set the
+// gap. The live result shows in the terminal preview above.
 
 import type { JSX } from 'react'
 import { useConfigStore } from '../store/configStore'
@@ -25,22 +24,30 @@ export function PetCard(): JSX.Element {
   const pet = useConfigStore((s) => s.config.pet)
   const updatePet = useConfigStore((s) => s.updatePet)
   const metricLabel = METRIC_OPTIONS.find((m) => m.value === pet.metric)?.label ?? 'context'
+  const status = pet.enabled ? (PETS.find((p) => p.id === pet.petId)?.label ?? pet.petId) : 'off'
 
   return (
-    <section className="card card-pad stack" aria-label="Pet companion">
-      <div className="spread">
-        <h3 className="section-head">Pet companion</h3>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={pet.enabled}
-            onChange={(e) => updatePet({ enabled: e.target.checked })}
-            aria-label="enable pet"
-          />
-          <span className="box" />
-          <span>{pet.enabled ? 'on' : 'off'}</span>
-        </label>
-      </div>
+    <details className="card card-pad stack disclosure">
+      <summary className="section-head" style={{ cursor: 'pointer' }}>
+        Pet companion{' '}
+        <span
+          className="mono"
+          style={{ fontWeight: 400, color: pet.enabled ? 'var(--accent)' : 'var(--fg-muted)' }}
+        >
+          · {status}
+        </span>
+      </summary>
+
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={pet.enabled}
+          onChange={(e) => updatePet({ enabled: e.target.checked })}
+          aria-label="enable pet"
+        />
+        <span className="box" />
+        <span>{pet.enabled ? 'on' : 'off'}</span>
+      </label>
 
       {!pet.enabled && (
         <span className="comment">
@@ -106,11 +113,11 @@ export function PetCard(): JSX.Element {
           </label>
 
           <span className="comment">
-            drawn at the left of the statusline; scrub {metricLabel} in the “Preview” tab to see it
-            react
+            drawn at the left of the statusline; scrub {metricLabel} in “Adjust preview data” to
+            see it react
           </span>
         </div>
       )}
-    </section>
+    </details>
   )
 }
