@@ -112,5 +112,27 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Privacy-friendly, cookieless analytics (no consent banner needed; see
+         /privacy.html). The path callback records hash-routed views (#/ vs
+         #/build) as distinct pages; GoatCounter already skips localhost and IP
+         hosts, so the build-time prerender server never logs a phantom hit. -->
+    <script>
+      window.goatcounter = {
+        path: function () {
+          return location.pathname + location.hash
+        },
+      }
+      addEventListener('hashchange', function () {
+        if (window.goatcounter && window.goatcounter.count) {
+          window.goatcounter.count({ path: location.pathname + location.hash })
+        }
+      })
+    </script>
+    <script
+      data-goatcounter="https://smokills.goatcounter.com/count"
+      async
+      src="//gc.zgo.at/count.js"
+    ></script>
   </body>
 </html>

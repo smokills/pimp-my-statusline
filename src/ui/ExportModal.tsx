@@ -11,6 +11,7 @@ import { useToast } from './Toast'
 import { IconClose, IconCopy, IconDownload } from './icons'
 import { highlightCode, highlightJson } from './lib/highlight'
 import { settingsSnippet, installSteps, dependencyNote } from './lib/install'
+import { trackEvent } from './lib/analytics'
 
 const LANG_LABEL: Record<Lang, string> = {
   bash: 'BASH (+jq)',
@@ -80,6 +81,15 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
     }
   }
 
+  // The script leaving the page — copy or download — is the conversion worth
+  // measuring. Tagged by language so the dashboard shows which shell wins.
+  const exported = () => trackEvent(`export-${lang}`, `Export (${lang})`)
+
+  const copyScript = () => {
+    copy(script, 'copied to clipboard')
+    exported()
+  }
+
   const download = () => {
     const blob = new Blob([script], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
@@ -89,6 +99,7 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
     a.click()
     URL.revokeObjectURL(url)
     toast(`downloaded ${scriptFileName(lang)}`)
+    exported()
     // Persist the chosen language back to the config.
     setLanguage(lang)
   }
@@ -135,7 +146,7 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
               <CodeView code={script} lang={lang} />
             </div>
             <div className="row-flex">
-              <button type="button" className="btn btn-primary" onClick={() => copy(script, 'copied to clipboard')}>
+              <button type="button" className="btn btn-primary" onClick={copyScript}>
                 <IconCopy />
                 Copy
               </button>
