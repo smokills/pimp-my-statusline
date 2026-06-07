@@ -24,6 +24,7 @@ export function Footer(): JSX.Element {
         <nav className="foot-links" aria-label="Footer">
           <a href="#features">Features</a>
           <a href="#how">How it works</a>
+          <a href="#faq">FAQ</a>
           <a href="#/build">Builder</a>
           <a href={GITHUB_URL} target="_blank" rel="noreferrer noopener">
             GitHub

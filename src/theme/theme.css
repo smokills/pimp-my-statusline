@@ -1504,6 +1504,52 @@ details[open].disclosure > summary::before {
   color: var(--accent);
 }
 
+/* --- FAQ --- */
+.faq {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  font-weight: 600;
+  font-size: var(--fs-16);
+}
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+/* Plus that becomes an x when the item is open. */
+.faq-item summary::after {
+  content: '+';
+  flex: none;
+  color: var(--accent);
+  font-size: var(--fs-20);
+  font-weight: 400;
+  line-height: 1;
+  transition: transform var(--t-fast) var(--ease);
+}
+.faq-item[open] summary::after {
+  transform: rotate(45deg);
+}
+.faq-item:hover {
+  border-color: var(--border-strong);
+}
+.faq-item p {
+  padding: 0 var(--sp-5) var(--sp-4);
+  color: var(--fg-muted);
+  font-size: var(--fs-14);
+  line-height: 1.6;
+  max-width: 65ch;
+}
+
 /* --- CTA band --- */
 .cta-band {
   text-align: center;

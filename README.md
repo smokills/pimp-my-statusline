@@ -36,3 +36,20 @@ Build your [Claude Code statusline](https://smokills.github.io/pimp-my-statuslin
 ```
 
 The export panel adds `"refreshInterval": 10` to the snippet when your statusline shows time-based data (reset countdowns).
+
+## FAQ
+
+**Do I need an account or an install?**
+No. The builder runs entirely in your browser and your work saves locally as you go. The only thing that ever leaves the page is the script you choose to export.
+
+**Can I trust the generated script?**
+Read it before you install it: the export is a short, commented script that reads the session JSON Claude Code pipes in and prints your statusline. No network calls, no telemetry, nothing else.
+
+**What does the script need to run?**
+The bash export needs `jq`; the python and node exports use the standard library only. All three run on macOS and Linux.
+
+**Can I change my statusline later?**
+Yes. Your config persists in the browser, and every exported script embeds a re-import marker: paste the script back into the builder to resume editing exactly where you left off.
+
+**How is this different from [ccstatusline](https://github.com/sirmalloc/ccstatusline)?**
+ccstatusline is a terminal UI you run with npx. Pimp My Statusline is a web page: you build with live visual feedback, watch the preview react to a simulated session, adopt an ASCII pet, and export a script you can read and edit by hand.

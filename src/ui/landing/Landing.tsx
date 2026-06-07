@@ -7,6 +7,7 @@ import { Hero } from './Hero'
 import { StatsBar } from './StatsBar'
 import { FeaturesGrid } from './FeaturesGrid'
 import { HowItWorks } from './HowItWorks'
+import { Faq } from './Faq'
 import { CtaBand } from './CtaBand'
 import { Footer } from './Footer'
 
@@ -22,6 +23,7 @@ export function Landing(): JSX.Element {
         <StatsBar />
         <FeaturesGrid />
         <HowItWorks />
+        <Faq />
         <CtaBand />
       </main>
       <Footer />
