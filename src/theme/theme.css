@@ -1819,6 +1819,10 @@ details[open].disclosure > summary::before {
 }
 .editor-canvas {
   grid-column: 2;
+  /* Stacks the pet companion section above the rows canvas with rhythm. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
 }
 .editor-library {
   grid-column: 1;

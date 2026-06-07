@@ -18,6 +18,7 @@ import { AnsiPreview } from './ui/AnsiPreview'
 import { BuildStrip } from './ui/BuildStrip'
 import { ElementLibrary } from './ui/ElementLibrary'
 import { RowCanvas } from './ui/RowCanvas'
+import { PetCard } from './ui/PetCard'
 import { InspectorPanel } from './ui/InspectorPanel'
 import { PlacedSegmentPicker } from './ui/PlacedSegmentPicker'
 import { ExportModal } from './ui/ExportModal'
@@ -152,6 +153,9 @@ function Builder(): JSX.Element {
           )}
         </div>
         <div className={`editor-canvas ${mobileTab === 'build' ? '' : 'mobile-hide'}`}>
+          {/* The pet flanks the rows in the output, so its controls sit right
+              above them: a collapsible companion section, not a tab. */}
+          <PetCard />
           <RowCanvas focusedRowId={effectiveFocusRow} onFocusRow={setFocusedRowId} />
         </div>
       </main>

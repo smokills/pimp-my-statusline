@@ -1,8 +1,8 @@
 // BuildStrip — the GLOBAL zone under the builder preview, organized as a tab
-// group: Builds · Pet · Settings · Preview. One panel is always visible
-// (Builds preselected); the active tab is highlighted via the design system's
-// segmented control. Everything config-wide lives here, while the sidebar
-// stays strictly element-scoped (library ⇄ docked inspector).
+// group: Builds · Settings · Preview. One panel is always visible (Builds
+// preselected); the active tab is highlighted via the design system's
+// segmented control. The pet lives in its own collapsible section above the
+// rows (see PetCard in App), not here.
 //
 // Each build card is a complete statusline config (model/presets/builds)
 // rendered as a live mini terminal thumbnail against the CURRENT mock data;
@@ -17,18 +17,15 @@ import { AnsiLine } from '../preview/ansiToHtml'
 import { useConfigStore } from '../store/configStore'
 import { useMockStore } from '../store/mockStore'
 import { defaultThresholdStops } from '../model/segments'
-import { PETS } from '../pets/pets'
 import { MockDataPanel } from './MockDataPanel'
-import { PetCard } from './PetCard'
 import { SettingsCard } from './SettingsCard'
 import { useToast } from './Toast'
 
-type GlobalTab = 'builds' | 'pet' | 'settings' | 'data'
+type GlobalTab = 'builds' | 'settings' | 'data'
 
 export function BuildStrip(): JSX.Element {
   const config = useConfigStore((s) => s.config)
   const replaceConfig = useConfigStore((s) => s.replaceConfig)
-  const pet = useConfigStore((s) => s.config.pet)
   const defaultThresholds = useConfigStore((s) => s.config.global.defaultThresholds)
   const mock = useMockStore((s) => s.mock)
   const { toast } = useToast()
@@ -65,17 +62,12 @@ export function BuildStrip(): JSX.Element {
     toast(`“${build.name}” build applied`)
   }
 
-  // Status cues in the tab labels, so global state is readable at a glance:
-  // the active pet and customized thresholds.
-  const petStatus = pet.enabled
-    ? (PETS.find((p) => p.id === pet.petId)?.label ?? pet.petId)
-    : 'off'
+  // Status cue in the Settings tab label: customized thresholds.
   const factoryStops = useMemo(() => JSON.stringify(defaultThresholdStops()), [])
   const customThresholds = JSON.stringify(defaultThresholds) !== factoryStops
 
   const tabs: { key: GlobalTab; label: string }[] = [
     { key: 'builds', label: 'Builds' },
-    { key: 'pet', label: `Pet · ${petStatus}` },
     { key: 'settings', label: `Settings${customThresholds ? ' · custom' : ''}` },
     { key: 'data', label: 'Preview' },
   ]
@@ -127,11 +119,6 @@ export function BuildStrip(): JSX.Element {
               </button>
             ))}
           </div>
-        </div>
-      )}
-      {tab === 'pet' && (
-        <div role="tabpanel" id="gpanel-pet" aria-labelledby="gtab-pet" className="build-panel">
-          <PetCard />
         </div>
       )}
       {tab === 'settings' && (
