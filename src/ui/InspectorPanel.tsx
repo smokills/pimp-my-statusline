@@ -1,10 +1,12 @@
 // InspectorPanel — the ELEMENT inspector as a NON-MODAL panel docked in the
-// builder's right sidebar. No backdrop, no dim, no blur, no focus trap: the
-// sticky preview and the canvas stay fully visible and live while editing.
-// Renders only when a chip is selected; Esc and the X button dismiss it.
+// builder's left column (it replaces the library while editing). No backdrop,
+// no dim, no blur, no focus trap: the sticky preview and the canvas stay fully
+// visible and live while editing. Renders only when a chip is selected; Esc and
+// the X button dismiss it.
 //
-// This inspector is strictly per-element: the pet and the global display
-// settings live in the build strip under the preview (PetCard / SettingsCard).
+// This inspector is strictly per-element, including each gauge's colors and
+// threshold breakpoints. The pet lives in its own section above the rows
+// (PetCard); there is no separate global settings surface.
 
 import { useEffect, useRef, type JSX } from 'react'
 import { useConfigStore } from '../store/configStore'

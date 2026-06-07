@@ -1,8 +1,10 @@
 // BuildStrip — the GLOBAL zone under the builder preview, organized as a tab
-// group: Builds · Settings · Preview. One panel is always visible (Builds
-// preselected); the active tab is highlighted via the design system's
-// segmented control. The pet lives in its own collapsible section above the
-// rows (see PetCard in App), not here.
+// group: Builds · Preview. One panel is always visible (Builds preselected);
+// the active tab is highlighted via the design system's segmented control. The
+// pet lives in its own collapsible section above the rows (see PetCard in App).
+// New metric gauges inherit sensible factory threshold colors automatically
+// (global.defaultThresholds); per-element colors are edited in the inspector,
+// so there is no separate global "Settings" surface.
 //
 // Each build card is a complete statusline config (model/presets/builds)
 // rendered as a live mini terminal thumbnail against the CURRENT mock data;
@@ -16,17 +18,14 @@ import { renderToAnsi } from '../preview/renderToAnsi'
 import { AnsiLine } from '../preview/ansiToHtml'
 import { useConfigStore } from '../store/configStore'
 import { useMockStore } from '../store/mockStore'
-import { defaultThresholdStops } from '../model/segments'
 import { MockDataPanel } from './MockDataPanel'
-import { SettingsCard } from './SettingsCard'
 import { useToast } from './Toast'
 
-type GlobalTab = 'builds' | 'settings' | 'data'
+type GlobalTab = 'builds' | 'data'
 
 export function BuildStrip(): JSX.Element {
   const config = useConfigStore((s) => s.config)
   const replaceConfig = useConfigStore((s) => s.replaceConfig)
-  const defaultThresholds = useConfigStore((s) => s.config.global.defaultThresholds)
   const mock = useMockStore((s) => s.mock)
   const { toast } = useToast()
   const [tab, setTab] = useState<GlobalTab>('builds')
@@ -62,13 +61,8 @@ export function BuildStrip(): JSX.Element {
     toast(`“${build.name}” build applied`)
   }
 
-  // Status cue in the Settings tab label: customized thresholds.
-  const factoryStops = useMemo(() => JSON.stringify(defaultThresholdStops()), [])
-  const customThresholds = JSON.stringify(defaultThresholds) !== factoryStops
-
   const tabs: { key: GlobalTab; label: string }[] = [
     { key: 'builds', label: 'Builds' },
-    { key: 'settings', label: `Settings${customThresholds ? ' · custom' : ''}` },
     { key: 'data', label: 'Preview' },
   ]
 
@@ -119,16 +113,6 @@ export function BuildStrip(): JSX.Element {
               </button>
             ))}
           </div>
-        </div>
-      )}
-      {tab === 'settings' && (
-        <div
-          role="tabpanel"
-          id="gpanel-settings"
-          aria-labelledby="gtab-settings"
-          className="build-panel"
-        >
-          <SettingsCard />
         </div>
       )}
       {tab === 'data' && (
