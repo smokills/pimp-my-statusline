@@ -949,6 +949,14 @@ details[open].disclosure > summary::before {
   color: #fff;
 }
 
+/* The window controls are decorative (aria-hidden spans). Make them inert so
+   the close button's hover state never reads as a real "close the preview". */
+.traffic,
+.term-winctl,
+.gnome-ctl {
+  pointer-events: none;
+}
+
 
 /* The terminal preview <pre> itself (used inside mockups & builder). */
 .terminal-preview {
@@ -1020,6 +1028,21 @@ details[open].disclosure > summary::before {
 .chip .glyphs {
   font-size: var(--fs-12);
   color: var(--fg-muted);
+}
+/* Pencil hint: makes it obvious the chip body opens the editor. Hidden until
+   the chip is hovered, focused or selected so it doesn't add visual noise. */
+.chip .edit-hint {
+  display: inline-flex;
+  color: var(--fg-faint);
+  opacity: 0;
+  margin-left: 2px;
+  transition: opacity var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.chip:hover .edit-hint,
+.chip:focus-visible .edit-hint,
+.chip[data-selected='true'] .edit-hint {
+  opacity: 1;
+  color: var(--accent);
 }
 .placed-tag {
   font-size: var(--fs-12);
@@ -1209,6 +1232,9 @@ details[open].disclosure > summary::before {
   pointer-events: none;
 }
 .toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
   font-family: var(--font-mono);
   font-size: var(--fs-13);
   color: var(--fg);
@@ -1219,6 +1245,23 @@ details[open].disclosure > summary::before {
   box-shadow: var(--shadow-md);
   padding: var(--sp-3) var(--sp-4);
   animation: toast-in var(--t-med) var(--ease);
+}
+.toast-action {
+  appearance: none;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.toast-action:hover {
+  border-color: var(--accent);
 }
 .toast[data-tone='warn'] {
   border-left-color: var(--warn);
@@ -1766,7 +1809,7 @@ details[open].disclosure > summary::before {
 .editor {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: var(--sp-4);
   padding: var(--sp-6);
   max-width: 1280px;
@@ -1775,10 +1818,10 @@ details[open].disclosure > summary::before {
   align-items: start;
 }
 .editor-canvas {
-  grid-column: 1;
+  grid-column: 2;
 }
 .editor-library {
-  grid-column: 2;
+  grid-column: 1;
   position: sticky;
   top: calc(var(--nav-h) + var(--sp-4));
   /* The library (or the docked inspector) can outgrow the viewport: scroll inside. */

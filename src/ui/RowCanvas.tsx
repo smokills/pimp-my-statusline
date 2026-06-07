@@ -27,11 +27,10 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useConfigStore } from '../store/configStore'
-import type { Row, Segment, SegmentType } from '../model/types'
+import type { Row, Segment } from '../model/types'
 import { SEGMENTS } from '../model/segments'
 import { IconGrip, IconPlus, IconClose } from './icons'
 import { ElementChip } from './ElementChip'
-import { isLibraryDragId, libraryDragType } from './ElementLibrary'
 import { useToast } from './Toast'
 
 const ROW_PREFIX = 'rowsort:'
@@ -123,8 +122,18 @@ function RowShell({
             title="delete row"
             onClick={(e) => {
               e.stopPropagation()
+              // Snapshot the whole config first: undo restores the row with its
+              // elements at its original position, exactly as it was.
+              const prev = useConfigStore.getState().config
+              const hadElements = row.segments.length > 0
               removeRow(row.id)
-              toast(`removed row ${index + 1}`, 'warn')
+              toast(
+                `removed row ${index + 1}`,
+                'warn',
+                hadElements
+                  ? { label: 'Undo', onClick: () => useConfigStore.getState().replaceConfig(prev) }
+                  : undefined,
+              )
             }}
           >
             <IconClose />
@@ -179,9 +188,6 @@ export function RowCanvas({
   const addRow = useConfigStore((s) => s.addRow)
   const moveSegment = useConfigStore((s) => s.moveSegment)
   const reorderRows = useConfigStore((s) => s.reorderRows)
-  const addSegment = useConfigStore((s) => s.addSegment)
-  const selectSegment = useConfigStore((s) => s.selectSegment)
-  const { toast } = useToast()
 
   const [activeSeg, setActiveSeg] = useState<Segment | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -221,10 +227,6 @@ export function RowCanvas({
       draggingRowRef.current = id.slice(ROW_PREFIX.length)
       return
     }
-    if (isLibraryDragId(id)) {
-      setActiveSeg(null)
-      return
-    }
     const seg = rows.flatMap((r) => r.segments).find((s) => s.id === id) ?? null
     setActiveSeg(seg)
   }
@@ -253,19 +255,6 @@ export function RowCanvas({
     }
 
     if (!overId) return
-
-    // Library → new segment.
-    if (isLibraryDragId(activeId)) {
-      const type = libraryDragType(activeId) as SegmentType
-      const target = resolveTarget(overId)
-      const rowId = target?.rowId ?? focusedRowId ?? rows[0]?.id
-      const id = addSegment(type, rowId)
-      // If we know an exact index, move it there.
-      if (target && rowId) moveSegment(id, rowId, target.index)
-      selectSegment(id)
-      toast(`added → ${SEGMENTS[type].label.toLowerCase()}`)
-      return
-    }
 
     // Existing segment move (within / between rows).
     const target = resolveTarget(overId)

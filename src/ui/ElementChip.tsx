@@ -1,14 +1,13 @@
 // ElementChip — a placed segment inside a row. Sortable (dnd-kit), selectable,
-// removable. Shows the type label, a tiny swatch of its current color, and
-// variant glyphs.
+// removable. Shows the type label and a tiny swatch of its current color.
 
 import type { JSX } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Segment } from '../model/types'
 import { SEGMENTS } from '../model/segments'
-import { IconClose } from './icons'
-import { primaryStyle, variantGlyphs } from './lib/library'
+import { IconClose, IconPencil } from './icons'
+import { primaryStyle } from './lib/library'
 import { styleSwatchHex } from './lib/color'
 
 export function ElementChip({
@@ -26,7 +25,6 @@ export function ElementChip({
     id: seg.id,
     data: { segmentId: seg.id },
   })
-  const glyphs = variantGlyphs(seg)
   const swatch = styleSwatchHex(primaryStyle(seg))
   const label = SEGMENTS[seg.type].label
 
@@ -57,11 +55,11 @@ export function ElementChip({
     >
       <span className="swatch" style={{ background: swatch }} aria-hidden="true" />
       <span>{label}</span>
-      {glyphs && (
-        <span className="glyphs" aria-hidden="true">
-          {glyphs}
-        </span>
-      )}
+      {/* Reveals on hover/selection so it's obvious the chip body opens the
+          editor. Decorative: the chip's aria-label already says "enter to edit". */}
+      <span className="edit-hint" aria-hidden="true">
+        <IconPencil style={{ width: 13, height: 13 }} />
+      </span>
       <button
         type="button"
         className="icon-btn"

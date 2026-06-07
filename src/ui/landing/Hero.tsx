@@ -2,11 +2,12 @@
 // highlight, subtitle, dual CTA, and the live TerminalMockup demo.
 //
 // The demo renders the REAL default statusline (with the cactus pet enabled) via
-// renderToAnsi, stepping the context % through a loop (12 → 34 → 58 → 83 → 96)
-// on a 3s interval so the pet visibly changes mood. It is an instant swap, not
-// an animation. Under prefers-reduced-motion the loop is paused and the 34%
-// state is shown. The window chrome matches the visitor's OS (detectOs) so the
-// mockup reads as THEIR terminal.
+// renderToAnsi, stepping through a loop of climbing scenarios on a 3s interval:
+// context, 5h session and 7d week ALL rise together, so every gauge moves and
+// the pet visibly changes mood (not just the context bar). It is an instant
+// swap, not an animation. Under prefers-reduced-motion the loop is paused and a
+// mid scenario is shown. The window chrome matches the visitor's OS (detectOs)
+// so the mockup reads as THEIR terminal.
 
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { defaultConfig } from '../../model/presets/defaultPreset'
@@ -19,7 +20,15 @@ import { detectOs } from '../detectOs'
 import { IconArrowRight, IconGitHub } from '../icons'
 
 const GITHUB_URL = 'https://github.com/smokills/pimp-my-statusline'
-const CTX_STEPS = [12, 34, 58, 83, 96]
+// Each scenario climbs all three meters together (context %, 5h session %, 7d
+// week %). Index 1 is the calm "typical" state shown under reduced motion.
+const SCENARIOS: { ctx: number; session: number; week: number }[] = [
+  { ctx: 12, session: 8, week: 20 },
+  { ctx: 34, session: 28, week: 41 },
+  { ctx: 58, session: 55, week: 63 },
+  { ctx: 83, session: 79, week: 86 },
+  { ctx: 96, session: 94, week: 98 },
+]
 const STEP_MS = 3000
 
 // The hero config: the byte-faithful default, with the cactus pet turned on so
@@ -29,12 +38,17 @@ function heroConfig(): StatuslineConfig {
   return { ...cfg, pet: { ...cfg.pet, enabled: true } }
 }
 
-function mockAtContext(pct: number): MockData {
+function mockForScenario(s: { ctx: number; session: number; week: number }): MockData {
   const base = typical()
   const cw = base.context_window!
+  const rl = base.rate_limits!
   return {
     ...base,
-    context_window: { ...cw, used_percentage: pct, remaining_percentage: 100 - pct },
+    context_window: { ...cw, used_percentage: s.ctx, remaining_percentage: 100 - s.ctx },
+    rate_limits: {
+      five_hour: { ...rl.five_hour!, used_percentage: s.session },
+      seven_day: { ...rl.seven_day!, used_percentage: s.week },
+    },
   }
 }
 
@@ -42,7 +56,7 @@ export function Hero(): JSX.Element {
   const os = useMemo(() => detectOs(), [])
   const config = useMemo(heroConfig, [])
 
-  // Step index into CTX_STEPS. Starts on the 34% state (index 1) so the static
+  // Step index into SCENARIOS. Starts on the calm state (index 1) so the static
   // reduced-motion view matches the "typical" preset.
   const [step, setStep] = useState(1)
 
@@ -54,9 +68,9 @@ export function Hero(): JSX.Element {
       if (mq.matches) {
         if (id !== null) clearInterval(id)
         id = null
-        setStep(1) // freeze on the typical 34% state
+        setStep(1) // freeze on the calm "typical" scenario
       } else if (id === null) {
-        id = setInterval(() => setStep((s) => (s + 1) % CTX_STEPS.length), STEP_MS)
+        id = setInterval(() => setStep((s) => (s + 1) % SCENARIOS.length), STEP_MS)
       }
     }
     sync()
@@ -67,7 +81,7 @@ export function Hero(): JSX.Element {
     }
   }, [])
 
-  const mock = useMemo(() => mockAtContext(CTX_STEPS[step]), [step])
+  const mock = useMemo(() => mockForScenario(SCENARIOS[step]), [step])
 
   return (
     <section className="hero">

@@ -133,9 +133,8 @@ function Builder(): JSX.Element {
       </nav>
 
       <main className="editor">
-        <div className={`editor-canvas ${mobileTab === 'build' ? '' : 'mobile-hide'}`}>
-          <RowCanvas focusedRowId={effectiveFocusRow} onFocusRow={setFocusedRowId} />
-        </div>
+        {/* Library/inspector sits on the LEFT; the rows canvas on the right.
+            DOM order matches that so keyboard tab order follows the layout. */}
         <div className={`editor-library ${mobileTab === 'style' ? '' : 'mobile-hide'}`}>
           {selected ? (
             // Editing an element: the docked, non-modal inspector replaces the
@@ -151,6 +150,9 @@ function Builder(): JSX.Element {
               <ElementLibrary focusedRowId={effectiveFocusRow} />
             </>
           )}
+        </div>
+        <div className={`editor-canvas ${mobileTab === 'build' ? '' : 'mobile-hide'}`}>
+          <RowCanvas focusedRowId={effectiveFocusRow} onFocusRow={setFocusedRowId} />
         </div>
       </main>
 

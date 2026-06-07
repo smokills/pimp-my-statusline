@@ -15,14 +15,22 @@ import {
 
 export type ToastTone = 'ok' | 'warn' | 'crit'
 
+/** An optional inline action (e.g. Undo). Clicking it runs `onClick` and
+ *  dismisses the toast. Actionable toasts linger longer so there's time to act. */
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 interface ToastItem {
   id: number
   message: string
   tone: ToastTone
+  action?: ToastAction
 }
 
 interface ToastApi {
-  toast(message: string, tone?: ToastTone): void
+  toast(message: string, tone?: ToastTone, action?: ToastAction): void
 }
 
 const ToastContext = createContext<ToastApi | null>(null)
@@ -40,15 +48,26 @@ export function ToastProvider({ children }: { children: ReactNode }): JSX.Elemen
   // after unmount, no leaked timers).
   const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
 
-  const toast = useCallback((message: string, tone: ToastTone = 'ok') => {
-    const id = (nextId.current += 1)
-    setItems((cur) => [...cur, { id, message, tone }])
-    const handle = setTimeout(() => {
-      timers.current.delete(handle)
-      setItems((cur) => cur.filter((t) => t.id !== id))
-    }, 2600)
-    timers.current.add(handle)
+  const dismiss = useCallback((id: number) => {
+    setItems((cur) => cur.filter((t) => t.id !== id))
   }, [])
+
+  const toast = useCallback(
+    (message: string, tone: ToastTone = 'ok', action?: ToastAction) => {
+      const id = (nextId.current += 1)
+      setItems((cur) => [...cur, { id, message, tone, action }])
+      const handle = setTimeout(
+        () => {
+          timers.current.delete(handle)
+          setItems((cur) => cur.filter((t) => t.id !== id))
+        },
+        // Actionable toasts stay up long enough to read and click.
+        action ? 6000 : 2600,
+      )
+      timers.current.add(handle)
+    },
+    [],
+  )
 
   useEffect(() => {
     const pending = timers.current
@@ -64,7 +83,19 @@ export function ToastProvider({ children }: { children: ReactNode }): JSX.Elemen
       <div className="toast-stack" aria-live="polite" aria-atomic="false">
         {items.map((t) => (
           <div key={t.id} className="toast" data-tone={t.tone} role="status">
-            {t.message}
+            <span>{t.message}</span>
+            {t.action && (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  t.action?.onClick()
+                  dismiss(t.id)
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

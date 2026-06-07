@@ -1,10 +1,13 @@
 // ElementLibrary — left rail. Categories from the SEGMENTS registry (one entry
-// per type), a search filter, click-to-add to the focused row, placed-count
-// badges, and draggable items (the canvas DndContext handles the drop). Single-
-// instance types are disabled once placed; separator/staticText stay re-addable.
+// per type), a search filter, and click-to-add to the focused row with
+// placed-count badges. Single-instance types are disabled once placed;
+// separator/staticText stay re-addable.
+//
+// Items are click-to-add, NOT drag sources: the only DndContext lives inside
+// RowCanvas, and the library renders in the sidebar outside it, so a draggable
+// here could never reach the canvas. The cursor stays a pointer to say so.
 
 import { useMemo, useState, type JSX } from 'react'
-import { useDraggable } from '@dnd-kit/core'
 import { IconCheck } from './icons'
 import { useConfigStore } from '../store/configStore'
 import {
@@ -17,15 +20,6 @@ import {
 } from './lib/library'
 import { useToast } from './Toast'
 
-const LIBRARY_DRAG_PREFIX = 'lib:'
-
-export function isLibraryDragId(id: string): boolean {
-  return id.startsWith(LIBRARY_DRAG_PREFIX)
-}
-export function libraryDragType(id: string): string {
-  return id.slice(LIBRARY_DRAG_PREFIX.length)
-}
-
 function LibraryItem({
   entry,
   placed,
@@ -36,25 +30,16 @@ function LibraryItem({
   onAdd: (e: LibraryEntry) => void
 }): JSX.Element {
   const disabled = placed > 0 && !isReAddable(entry.type)
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: LIBRARY_DRAG_PREFIX + entry.type,
-    disabled,
-    data: { libraryType: entry.type },
-  })
 
   return (
     <div
-      ref={setNodeRef}
-      {...attributes}
-      {...(disabled ? {} : listeners)}
       className="chip"
       data-disabled={disabled}
-      data-dragging={isDragging}
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
-      title={disabled ? 'already in layout' : entry.description}
-      style={{ justifyContent: 'space-between', cursor: disabled ? 'not-allowed' : 'grab' }}
+      title={disabled ? 'already in layout' : `${entry.description} — click to add`}
+      style={{ justifyContent: 'space-between', cursor: disabled ? 'not-allowed' : 'pointer' }}
       onClick={() => !disabled && onAdd(entry)}
       onKeyDown={(e) => {
         if (disabled) return
