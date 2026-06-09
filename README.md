@@ -40,7 +40,7 @@ The export panel adds `"refreshInterval": 10` to the snippet when your statuslin
 ## FAQ
 
 **Do I need an account or an install?**
-No. The builder runs entirely in your browser and your work saves locally as you go. The only thing that ever leaves the page is the script you choose to export.
+No. The builder runs in your browser and your work saves locally as you go. Nothing you build gets uploaded.
 
 **Can I trust the generated script?**
 Read it before you install it: the export is a short, commented script that reads the session JSON Claude Code pipes in and prints your statusline. No network calls, no telemetry, nothing else.

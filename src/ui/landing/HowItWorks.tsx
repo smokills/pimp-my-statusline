@@ -67,7 +67,7 @@ export function HowItWorks(): JSX.Element {
           <h2>
             From blank canvas to <span className="accent">installed script</span>
           </h2>
-          <p>Three steps. No build tooling, no account, no copy-pasting from a wiki.</p>
+          <p>Three steps. No install, no account, no boilerplate.</p>
         </div>
 
         <div className="steps">
@@ -108,8 +108,8 @@ export function HowItWorks(): JSX.Element {
               <h3>Watch it react</h3>
               <p>
                 The preview renders the exact bytes your script will print. As context or rate
-                limits climb, threshold colors shift and your pet changes mood — here, the panic
-                state with the reset imminent.
+                limits climb, threshold colors shift and your pet changes mood. Shown here: the
+                panic state, with the reset imminent.
               </p>
               <ul className="checklist">
                 <li>
@@ -143,9 +143,9 @@ export function HowItWorks(): JSX.Element {
               <span className="step-num">3</span>
               <h3>Export &amp; install</h3>
               <p>
-                Generate a clean, readable script in bash, python or node. Drop it in
-                <code className="mono accent"> ~/.claude/</code>, point your settings at it, and you
-                are done. The script carries a marker so you can re-import and keep editing.
+                Generate the script in bash, python or node. Drop it in
+                <code className="mono accent"> ~/.claude/</code>, point your settings at it, and
+                you&apos;re done. It carries a marker, so you can re-import and keep editing.
               </p>
             </div>
             <div className="step-visual">

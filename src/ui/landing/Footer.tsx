@@ -20,7 +20,7 @@ export function Footer(): JSX.Element {
             Built for Claude Code.
           </span>
           <span className="muted" style={{ fontSize: 'var(--fs-13)' }}>
-            no cookies · no accounts · no tracking
+            no cookies · no accounts · no personal data
           </span>
         </div>
 

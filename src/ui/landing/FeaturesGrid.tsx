@@ -1,5 +1,5 @@
-// FeaturesGrid — the "Everything you need to ship faster" section: a 3×2 grid of
-// rounded surface cards, each with an inline SVG icon, bold title and muted body.
+// FeaturesGrid — the "Build it visually. Install it anywhere." section: a 3×2 grid
+// of rounded surface cards, each with an inline SVG icon, bold title and muted body.
 
 import type { JSX } from 'react'
 import {
@@ -20,7 +20,7 @@ const FEATURES: { icon: (p: { className?: string }) => JSX.Element; title: strin
   {
     icon: IconLayout,
     title: 'Drag & drop rows',
-    body: 'Compose multi-row layouts by dragging elements between rows, and drag whole rows to reorder them.',
+    body: 'Drag elements between rows to build the layout, then drag whole rows to reorder them.',
   },
   {
     icon: IconSparkle,
@@ -30,7 +30,7 @@ const FEATURES: { icon: (p: { className?: string }) => JSX.Element; title: strin
   {
     icon: IconCode,
     title: 'Export bash · python · node',
-    body: 'Generate a clean, readable, hand-editable script in your shell of choice. Export it and run it wherever you want.',
+    body: 'A short, hand-editable script you can read top to bottom. Copy it, run it, tweak it however you like.',
   },
   {
     icon: IconPalette,
@@ -40,7 +40,7 @@ const FEATURES: { icon: (p: { className?: string }) => JSX.Element; title: strin
   {
     icon: IconRefresh,
     title: 'Re-import & autosave',
-    body: 'Your work is saved locally as you go, and any exported script can be pasted back in to resume editing.',
+    body: 'Your work saves locally as you go, and you can paste any exported script back in to pick up editing.',
   },
 ]
 

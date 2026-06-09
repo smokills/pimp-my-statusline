@@ -7,7 +7,7 @@ import type { JSX } from 'react'
 export const FAQS: { q: string; a: string }[] = [
   {
     q: 'Do I need an account or an install?',
-    a: 'No. The builder runs entirely in your browser and your work saves locally as you go. The only thing that ever leaves the page is the script you choose to export.',
+    a: 'No. The builder runs in your browser and your work saves locally as you go. Nothing you build gets uploaded.',
   },
   {
     q: 'Can I trust the generated script?',
