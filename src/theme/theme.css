@@ -1682,6 +1682,22 @@ details[open].disclosure > summary::before {
   flex-direction: column;
   gap: var(--sp-3);
 }
+
+/* Builds/Import/Export cluster, docked to the right of the canvas "Add row"
+   button on desktop (the .spread footer pushes it to the edge). */
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* Same actions in the BuilderBar on mobile only. .mobile-only owns the display
+   toggle; this just spaces the icon buttons. */
+.bar-actions {
+  align-items: center;
+  gap: var(--sp-3);
+}
+
 /* Bigger type + guaranteed breathing room, builder only (the landing demo
    keeps the compact default). */
 .builder-hero .terminal-preview {

@@ -72,6 +72,13 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // Funnel step before copy/download. Counting opens separately from completed
+  // exports tells us whether the drop-off is "didn't find Export" (few opens)
+  // or "opened it but bailed" (many opens, few export-${lang} events).
+  useEffect(() => {
+    trackEvent('export-open', 'Export opened')
+  }, [])
+
   const copy = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -82,8 +89,14 @@ export function ExportModal({ onClose }: { onClose: () => void }): JSX.Element {
   }
 
   // The script leaving the page — copy or download — is the conversion worth
-  // measuring. Tagged by language so the dashboard shows which shell wins.
-  const exported = () => trackEvent(`export-${lang}`, `Export (${lang})`)
+  // measuring. Tagged by language so the dashboard shows which shell wins, and
+  // by pet so we learn which companion rides along in configs people keep
+  // (default-fair, no roster-browsing noise; pet-none is the no-pet share).
+  const exported = () => {
+    trackEvent(`export-${lang}`, `Export (${lang})`)
+    const pet = config.pet.enabled ? config.pet.petId : 'none'
+    trackEvent(`pet-${pet}`, `Pet (${pet})`)
+  }
 
   const copyScript = () => {
     copy(script, 'copied to clipboard')

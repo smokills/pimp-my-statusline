@@ -31,6 +31,7 @@ import type { Row, Segment } from '../model/types'
 import { SEGMENTS } from '../model/segments'
 import { IconGrip, IconPlus, IconClose } from './icons'
 import { ElementChip } from './ElementChip'
+import { PreviewActions } from './PreviewActions'
 import { useToast } from './Toast'
 
 const ROW_PREFIX = 'rowsort:'
@@ -180,9 +181,15 @@ function RowShell({
 export function RowCanvas({
   focusedRowId,
   onFocusRow,
+  onBuilds,
+  onImport,
+  onExport,
 }: {
   focusedRowId: string | null
   onFocusRow: (id: string) => void
+  onBuilds: () => void
+  onImport: () => void
+  onExport: () => void
 }): JSX.Element {
   const config = useConfigStore((s) => s.config)
   const addRow = useConfigStore((s) => s.addRow)
@@ -340,18 +347,23 @@ export function RowCanvas({
         </DragOverlay>
       </DndContext>
 
-      <button
-        type="button"
-        className="btn"
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => {
-          const id = addRow()
-          onFocusRow(id)
-        }}
-      >
-        <IconPlus />
-        Add row
-      </button>
+      {/* Footer: Add row on the left; Builds/Import/Export docked to its right
+          (desktop). PreviewActions is desktop-only — mobile keeps them in the
+          BuilderBar — so on mobile this row is just the Add row button. */}
+      <div className="spread">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            const id = addRow()
+            onFocusRow(id)
+          }}
+        >
+          <IconPlus />
+          Add row
+        </button>
+        <PreviewActions onBuilds={onBuilds} onImport={onImport} onExport={onExport} />
+      </div>
 
       <div className="sr-only" aria-live="assertive">
         {announcement}

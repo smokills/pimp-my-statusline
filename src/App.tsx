@@ -179,7 +179,13 @@ function Builder(): JSX.Element {
           {/* The pet flanks the rows in the output, so its controls sit right
               above them: a collapsible companion section, not a tab. */}
           <PetCard />
-          <RowCanvas focusedRowId={effectiveFocusRow} onFocusRow={setFocusedRowId} />
+          <RowCanvas
+            focusedRowId={effectiveFocusRow}
+            onFocusRow={setFocusedRowId}
+            onBuilds={() => setShowStart(true)}
+            onImport={() => setShowImport(true)}
+            onExport={() => setShowExport(true)}
+          />
         </div>
       </main>
 

@@ -16,6 +16,7 @@ import { AnsiLine } from '../preview/ansiToHtml'
 import { useConfigStore } from '../store/configStore'
 import { useMockStore } from '../store/mockStore'
 import { IconClose, IconUpload, IconArrowRight } from './icons'
+import { trackEvent } from './lib/analytics'
 
 interface StartOption {
   id: string
@@ -66,6 +67,8 @@ export function StartModal({
 
   const start = () => {
     const opt = options.find((o) => o.id === sel) ?? options[0]
+    // Which starting point people actually commit to (scratch included).
+    trackEvent(`preset-${opt.id}`, `Preset (${opt.name})`)
     replaceConfig({ ...opt.make(), language: config.language })
     onClose()
   }

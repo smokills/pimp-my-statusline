@@ -30,23 +30,25 @@ export function BuilderBar({
 
       <div style={{ flex: 1 }} />
 
-      <button
-        type="button"
-        className="btn btn-sm"
-        onClick={onBuilds}
-        title="Choose a starting point (prefab builds, scratch, import)"
-      >
-        <IconLayout />
-        <span className="mobile-hide">Builds</span>
-      </button>
-      <button type="button" className="btn btn-sm" onClick={onImport}>
-        <IconUpload />
-        <span className="mobile-hide">Import</span>
-      </button>
-      <button type="button" className="btn btn-primary btn-sm" onClick={onExport}>
-        <IconDownload />
-        <span className="mobile-hide">Export</span>
-      </button>
+      {/* On desktop these move to the PreviewActions toolbar under the preview;
+          here they stay for mobile, where the pinned hero has no room for them. */}
+      <div className="bar-actions mobile-only">
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={onBuilds}
+          aria-label="Builds"
+          title="Choose a starting point (prefab builds, scratch, import)"
+        >
+          <IconLayout />
+        </button>
+        <button type="button" className="btn btn-sm" onClick={onImport} aria-label="Import">
+          <IconUpload />
+        </button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onExport} aria-label="Export">
+          <IconDownload />
+        </button>
+      </div>
     </header>
   )
 }
