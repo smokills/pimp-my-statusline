@@ -77,14 +77,6 @@ function Builder(): JSX.Element {
   const config = useConfigStore((s) => s.config)
   const mock = useMockStore((s) => s.mock)
   const firstRowId = useConfigStore((s) => s.config.rows[0]?.id ?? null)
-  const selectedSegmentId = useConfigStore((s) => s.selectedSegmentId)
-  // Derive selection from whether the id resolves to a placed segment so a stale
-  // id (e.g. a removed segment) falls back to the element library.
-  const selected = useConfigStore(
-    (s) =>
-      s.selectedSegmentId != null &&
-      s.config.rows.some((r) => r.segments.some((x) => x.id === s.selectedSegmentId)),
-  )
 
   // Surface the persist rehydrate-fallback as a toast.
   useEffect(() => {
@@ -93,12 +85,6 @@ function Builder(): JSX.Element {
   }, [toast])
 
   const effectiveFocusRow = focusedRowId ?? firstRowId
-
-  // Selecting an element flips to the mobile STYLE tab so the docked inspector is
-  // visible there (harmless on desktop — mobile-hide only exists ≤640px).
-  useEffect(() => {
-    if (selectedSegmentId != null) setMobileTab('style')
-  }, [selectedSegmentId])
 
   // Keep --mobile-hero-h synced to the hero's REAL height so the mobile tabs pin
   // exactly below the pinned preview however tall the config grows (more rows,
@@ -158,22 +144,15 @@ function Builder(): JSX.Element {
       </nav>
 
       <main className="editor">
-        {/* Library/inspector sits on the LEFT; the rows canvas on the right.
-            DOM order matches that so keyboard tab order follows the layout. */}
+        {/* The element library sits on the LEFT; the rows canvas on the right.
+            DOM order matches that so keyboard tab order follows the layout. The
+            inspector is no longer docked here — it opens as a centered overlay
+            (see <InspectorPanel/> below) so editing an element never displaces
+            the library. */}
         <div className={`editor-library ${mobileTab === 'style' ? '' : 'mobile-hide'}`}>
-          {selected ? (
-            // Editing an element: the docked, non-modal inspector replaces the
-            // library. The preview/canvas stay live while editing. The inspector
-            // is strictly per-element; the pet has its own section above the
-            // rows and starting points live in the StartModal.
-            <InspectorPanel />
-          ) : (
-            <>
-              {/* PickerCard is the mobile-only selection path. */}
-              <PickerCard />
-              <ElementLibrary focusedRowId={effectiveFocusRow} />
-            </>
-          )}
+          {/* PickerCard is the mobile-only selection path. */}
+          <PickerCard />
+          <ElementLibrary focusedRowId={effectiveFocusRow} />
         </div>
         <div className={`editor-canvas ${mobileTab === 'build' ? '' : 'mobile-hide'}`}>
           {/* The pet flanks the rows in the output, so its controls sit right
@@ -188,6 +167,9 @@ function Builder(): JSX.Element {
           />
         </div>
       </main>
+
+      {/* Centered overlay (portals to body); renders only while a chip is selected. */}
+      <InspectorPanel />
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}

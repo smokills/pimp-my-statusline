@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useMockStore } from './mockStore'
+import { noRateLimits } from '../model/presets/mockPresets'
 
 beforeEach(() => {
   useMockStore.getState().reset()
@@ -24,8 +25,9 @@ describe('reset countdown scrubbers', () => {
   })
 
   it('is a no-op when rate_limits is absent', () => {
-    const s = useMockStore.getState()
-    s.toggleRateLimits(false)
+    // Presence is no longer toggled from the store; seed a rate_limits-absent
+    // mock directly to exercise the setter's guard.
+    useMockStore.setState({ mock: noRateLimits() })
     const before = useMockStore.getState().mock
     useMockStore.getState().setSessionResetMinutes(90)
     expect(useMockStore.getState().mock).toBe(before)

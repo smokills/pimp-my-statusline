@@ -1,14 +1,15 @@
-// InspectorPanel — the ELEMENT inspector as a NON-MODAL panel docked in the
-// builder's left column (it replaces the library while editing). No backdrop,
-// no dim, no blur, no focus trap: the sticky preview and the canvas stay fully
-// visible and live while editing. Renders only when a chip is selected; Esc and
-// the X button dismiss it.
+// InspectorPanel — the ELEMENT inspector as a centered overlay that opens over
+// the editor region, BELOW the sticky preview. The terminal stays sharp and live
+// while you edit; only the editor underneath is blurred (body.pms-inspector-open,
+// the same treatment as the preview-data drawer). Renders only when a chip is
+// selected; Esc, the X button, and a click outside the card all dismiss it.
 //
 // This inspector is strictly per-element, including each gauge's colors and
 // threshold breakpoints. The pet lives in its own section above the rows
 // (PetCard); there is no separate global settings surface.
 
 import { useEffect, useRef, type JSX } from 'react'
+import { createPortal } from 'react-dom'
 import { useConfigStore } from '../store/configStore'
 import { ElementInspector } from './ElementInspector'
 import { IconClose } from './icons'
@@ -31,15 +32,27 @@ export function InspectorPanel(): JSX.Element | null {
 
   const dismiss = () => selectSegment(null)
 
-  // Esc dismisses while a segment is selected.
+  // While open: blur the editor underneath (terminal stays sharp), and let Esc or
+  // a click outside the card dismiss. The opening click (on a canvas chip) has
+  // already finished before this listener attaches, so it can't self-close.
   useEffect(() => {
-    if (!seg) return
+    if (!open) return
+    document.body.classList.add('pms-inspector-open')
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') selectSegment(null)
     }
+    const onPointerDown = (e: PointerEvent) => {
+      if (ref.current?.contains(e.target as Node)) return
+      selectSegment(null)
+    }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [seg, selectSegment])
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      document.body.classList.remove('pms-inspector-open')
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [open, selectSegment])
 
   // Focus management, gated to the open<->closed transition (NOT every
   // selectedId change). On open: capture the prior focus, move focus into the
@@ -87,24 +100,28 @@ export function InspectorPanel(): JSX.Element | null {
 
   if (!seg) return null
 
-  return (
-    <section
-      ref={ref}
-      className="inspector-panel"
-      role="region"
-      aria-label="Element inspector"
-      tabIndex={-1}
-    >
-      <div className="inspector-head">
-        <span className="section-head">Element</span>
-        <button type="button" className="icon-btn" aria-label="close inspector" title="close (Esc)" onClick={dismiss}>
-          <IconClose />
-        </button>
-      </div>
+  return createPortal(
+    <div className="inspector-overlay">
+      <section
+        ref={ref}
+        className="inspector-panel"
+        role="dialog"
+        aria-modal="false"
+        aria-label="Element inspector"
+        tabIndex={-1}
+      >
+        <div className="inspector-head">
+          <span className="section-head">Element</span>
+          <button type="button" className="icon-btn" aria-label="close inspector" title="close (Esc)" onClick={dismiss}>
+            <IconClose />
+          </button>
+        </div>
 
-      <div className="inspector-body">
-        <ElementInspector seg={seg} />
-      </div>
-    </section>
+        <div className="inspector-body">
+          <ElementInspector seg={seg} />
+        </div>
+      </section>
+    </div>,
+    document.body,
   )
 }

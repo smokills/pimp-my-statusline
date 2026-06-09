@@ -85,7 +85,12 @@
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* --- Layout --- */
-  --maxw: 1120px;
+  /* Builder content rail — the shared max width the bar (logo), the preview
+     mockup and the editor all align to, so their left/right edges line up. */
+  --builder-rail: 1280px;
+  /* The landing's .container matches the builder rail so the home and the builder
+     share one content width. */
+  --maxw: var(--builder-rail);
   --nav-h: 60px;
   /* Height of the mobile preview hero, used to stagger the mobile tabs' sticky
      offset BELOW the pinned hero so the live preview stays visible while
@@ -94,6 +99,9 @@
      with a ResizeObserver and overrides the var, so tall configs (more rows,
      pet) never get occluded. */
   --mobile-hero-h: 210px;
+  /* Width of the preview-data drawer; also how far the page is pushed right when
+     it opens. */
+  --drawer-w: min(420px, 88vw);
 
   color-scheme: dark;
 }
@@ -112,6 +120,13 @@ body,
   min-height: 100%;
 }
 
+html {
+  /* The preview-data drawer pushes .builder past the right edge; clip at the
+     root so there's no horizontal scrollbar (clip keeps vertical scroll and the
+     fixed drawer intact). */
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -121,6 +136,10 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* The preview-data drawer pushes .builder right past the viewport edge; clip
+     the overflow so there's no horizontal scrollbar (clip leaves vertical scroll
+     and the fixed drawer untouched). */
+  overflow-x: clip;
 }
 
 h1,
@@ -203,6 +222,20 @@ a {
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--fg-muted);
+}
+
+/* Group header — one tier above field labels (.label): brighter, bolder and
+   divider-led, so a group reads as a section instead of competing with its own
+   field labels. Hierarchy carried by weight/brightness/divider, not hue (accent
+   green stays reserved for live values). */
+.group-head {
+  font-size: var(--fs-12);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--hairline);
 }
 
 .mono {
@@ -503,6 +536,17 @@ details[open].disclosure > summary::before {
   padding-right: var(--sp-8);
 }
 
+/* Disabled inputs: dim + not-allowed (matches the range/checkbox disabled look). */
+.text-input:disabled,
+.select-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.check:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Range slider */
 .range-input {
   appearance: none;
@@ -692,7 +736,10 @@ details[open].disclosure > summary::before {
 }
 .container {
   width: 100%;
-  max-width: var(--maxw);
+  /* Rail + the container's own --sp-6 padding, so the content box (after padding)
+     equals the rail and lands on the exact same edges as the builder (which uses
+     the same formula for .editor). Home and builder content line up 1:1. */
+  max-width: calc(var(--maxw) + 2 * var(--sp-6));
   margin: 0 auto;
   padding: 0 var(--sp-6);
 }
@@ -1128,6 +1175,22 @@ details[open].disclosure > summary::before {
    Inspector panel (non-modal, docked in the sidebar)
    =========================================================================== */
 
+/* The inspector opens as a centered overlay in the region BELOW the sticky preview
+   (top offset = bar + hero height), so the terminal stays sharp above it while the
+   editor behind is blurred (body.pms-inspector-open). */
+.inspector-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(var(--nav-h) + var(--mobile-hero-h, 210px));
+  bottom: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+}
+
 .inspector-panel {
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -1137,6 +1200,11 @@ details[open].disclosure > summary::before {
   flex-direction: column;
   animation: slide-up var(--t-med) var(--ease);
   outline: none;
+  box-shadow: var(--shadow-lg);
+  /* As a centered card: cap the width (100% on mobile so the color grid still
+     fits as it did in the old full-width column) and keep it inside the region. */
+  width: min(440px, 100%);
+  max-height: 100%;
 }
 /* Docked in the 340px sidebar (desktop only — below 768px the editor collapses
    to a single full-width column, so the cells keep their mobile 26px there).
@@ -1164,9 +1232,12 @@ details[open].disclosure > summary::before {
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--hairline);
 }
-/* No max-height/overflow of its own — the sidebar column scrolls. */
+/* Scrolls inside the capped card (head stays pinned). */
 .inspector-body {
   padding: var(--sp-4);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 @keyframes slide-up {
   from {
@@ -1305,12 +1376,14 @@ details[open].disclosure > summary::before {
   gap: var(--sp-5);
   margin-left: auto;
 }
-.nav-links a {
+/* Text links only — exclude the CTA button, or this muted color would override
+   .btn-primary's on-accent and leave it grey-on-green (illegible). */
+.nav-links a:not(.btn) {
   font-size: var(--fs-14);
   color: var(--fg-muted);
   transition: color var(--t-fast) var(--ease);
 }
-.nav-links a:hover {
+.nav-links a:not(.btn):hover {
   color: var(--fg);
 }
 
@@ -1650,6 +1723,27 @@ details[open].disclosure > summary::before {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: transform 240ms ease-out, margin 240ms ease-out;
+}
+
+/* The preview-data drawer pushes the whole page to the right (the drawer fills
+   the vacated left strip), so the preview shifts but stays visible while you
+   scrub it. Mobile slides the page off via transform (it's mostly off-screen
+   anyway); desktop re-flows via margin-left so the content re-centers into the
+   remaining width instead of keeping full-viewport centering and getting clipped
+   off the right with a big empty gap on the left — see the ≥769px override. */
+body.pms-drawer-open .builder {
+  transform: translateX(var(--drawer-w));
+}
+
+/* With the preview-data drawer OR the element inspector open, blur + recede the
+   editor BELOW the preview so focus lands on the terminal (drawer) or the centered
+   inspector card. The bar and the preview hero stay sharp; the editor goes inert. */
+body.pms-drawer-open .editor,
+body.pms-inspector-open .editor {
+  filter: blur(3px);
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .builder-bar {
@@ -1660,7 +1754,10 @@ details[open].disclosure > summary::before {
   display: flex;
   align-items: center;
   gap: var(--sp-4);
-  padding: 0 var(--sp-6);
+  /* Inset the bar's content to the same rail as the preview + editor: floors at
+     --sp-6 on narrow screens, then centers on the rail once the viewport is wide
+     enough — so the logo lines up with the terminal's left edge, not flush-left. */
+  padding: 0 max(var(--sp-6), calc((100% - var(--builder-rail)) / 2));
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--hairline);
@@ -1676,7 +1773,7 @@ details[open].disclosure > summary::before {
   padding: var(--sp-5) var(--sp-6) var(--sp-4);
 }
 .builder-hero-inner {
-  max-width: 1280px;
+  max-width: var(--builder-rail);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -1709,20 +1806,44 @@ details[open].disclosure > summary::before {
 /* Preview data controls, docked under the mockup inside the sticky hero. A slim
    disclosure: collapsed it is a labelled bar; open it reveals the scrubber right
    below the preview it drives. */
-.preview-tools {
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
+/* The "Preview data" trigger sits as a slim toolbar under the preview; the
+   scrubbers themselves live in a slide-in drawer (progressive disclosure). */
+.preview-data-trigger {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Left slide-in drawer holding the preview-data scrubbers. */
+/* Full-height left drawer. It pushes the page right (body.pms-drawer-open) rather
+   than overlaying it, so nothing is covered — the page just shifts aside. */
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--drawer-w);
+  z-index: 400;
   background: var(--surface);
-  padding: var(--sp-3) var(--sp-4);
+  border-right: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  padding: var(--sp-5);
+  overflow-y: auto;
+  animation: drawer-in 240ms ease-out;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
 }
 .preview-tools > summary {
   color: var(--fg-2);
   font-weight: 600;
   font-size: var(--fs-13);
 }
-/* Preview-scenario panel: compact three-column grid (usage · session ·
-   present objects) instead of a sparse full-width stack. Collapses to one
-   column on narrow screens via auto-fit. */
+/* Preview-scenario panel: compact three-column grid (usage · session · optional
+   data) instead of a sparse full-width stack. Collapses to one column on narrow
+   screens via auto-fit (always one column inside the ≤420px drawer). */
 .mock-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1732,7 +1853,18 @@ details[open].disclosure > summary::before {
 .mock-checks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-1) var(--sp-3);
+  gap: var(--sp-2) var(--sp-3);
+}
+/* The optional-data toggle labels are the literal stdin object keys Claude Code
+   sends — render them mono so they read as JSON, not as friendly field names. */
+.mock-checks .check > span:last-child {
+  font-family: var(--font-mono);
+}
+/* Drawer title tops the hierarchy: brighter and a step larger than the group
+   headers (.group-head) beneath it. */
+.drawer .section-head {
+  font-size: var(--fs-14);
+  color: var(--fg);
 }
 /* Pet roster as a responsive grid: all pets visible side by side, gracefully
    collapsing to fewer columns on narrow screens. */
@@ -1833,10 +1965,15 @@ details[open].disclosure > summary::before {
   grid-template-columns: 340px minmax(0, 1fr);
   gap: var(--sp-4);
   padding: var(--sp-6);
-  max-width: 1280px;
+  /* Rail + the editor's own --sp-6 padding, so the inner content box (after
+     padding) equals the rail and lines up edge-to-edge with the preview above. */
+  max-width: calc(var(--builder-rail) + 2 * var(--sp-6));
   width: 100%;
   margin: 0 auto;
   align-items: start;
+  /* Smooth the blur/recede when the preview-data drawer opens (see
+     body.pms-drawer-open .editor). */
+  transition: filter 240ms ease-out, opacity 240ms ease-out;
 }
 .editor-canvas {
   grid-column: 2;
@@ -1847,14 +1984,42 @@ details[open].disclosure > summary::before {
 }
 .editor-library {
   grid-column: 1;
-  position: sticky;
-  top: calc(var(--nav-h) + var(--sp-4));
-  /* The library (or the docked inspector) can outgrow the viewport: scroll inside. */
-  max-height: calc(100vh - var(--nav-h) - var(--sp-6));
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+}
+
+/* Desktop app-shell: the builder fills the viewport and ONLY the editor columns
+   scroll, so the window itself never scrolls. No hero-height math — flexbox hands
+   the editor exactly the room left under the bar and the sticky preview, the grid
+   row fills it, and each column scrolls inside instead of growing the page. The
+   drag overlay is position:fixed (never clipped) and dnd-kit auto-scrolls the
+   column while dragging. Mobile keeps normal flow + page scroll. */
+@media (min-width: 769px) {
+  .builder {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  /* Push by shrinking, not translating: the page reflows into the width left of
+     the drawer, so the rail re-centers there (snug ~--sp-6 gap, nothing clipped)
+     instead of carrying its full-viewport centering off the right edge. margin
+     (unlike transform) also doesn't make .builder a containing block, so any
+     position:fixed modal opened over it still anchors to the viewport. */
+  body.pms-drawer-open .builder {
+    transform: none;
+    margin-left: var(--drawer-w);
+  }
+  .editor {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .editor-library,
+  .editor-canvas {
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 
 /* Standalone sidebar card (the mobile-only placed-element picker). */

@@ -92,7 +92,7 @@ export function ElementLibrary({ focusedRowId }: { focusedRowId: string | null }
   }
 
   return (
-    <aside className="card card-pad stack" aria-label="Element library">
+    <aside className="card card-pad stack" aria-label="Element library" style={{ flex: 1, minHeight: 0 }}>
       <h2 className="section-head">Element Library</h2>
       <div className="field">
         <input
@@ -105,7 +105,7 @@ export function ElementLibrary({ focusedRowId }: { focusedRowId: string | null }
         />
       </div>
 
-      <div className="stack scroll-y" style={{ maxHeight: '62vh', paddingRight: 4 }}>
+      <div className="stack scroll-y" style={{ flex: 1, minHeight: 0, paddingRight: 4 }}>
         {CATEGORY_ORDER.map((cat) => {
           const items = byCategory.get(cat)!
           if (items.length === 0) return null

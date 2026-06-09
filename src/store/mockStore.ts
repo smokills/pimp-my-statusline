@@ -3,12 +3,40 @@
 // field, randomize() and reset(). Every mutation produces a NEW MockData object
 // (and nested objects) so React re-renders cleanly.
 //
-// The named mock presets (typical/fresh/panic/…) remain model-level fixtures
-// for the parity tests; the UI scrubs a single scenario seeded from typical().
+// The UI seed (uiTypical) extends the `typical` parity fixture so EVERY optional
+// object is present with a plausible default — placing any segment immediately
+// shows data the drawer can then scrub. The named model-level presets
+// (typical/fresh/panic/…) stay byte-exact for the parity tests; only this UI
+// seed is enriched, never those fixtures.
 
 import { create } from 'zustand'
 import type { MockData, EffortLevel } from '../model/mock'
 import { typical } from '../model/presets/mockPresets'
+
+// ---------------------------------------------------------------------------
+// UI seed — typical + the library elements it omits (output_style, agent) so
+// adding any element from the library immediately shows data the drawer can
+// scrub. Only library-exposed objects are seeded; types hidden from the picker
+// (vim, session_name, pr, thinking, worktree) get no UI scaffolding here.
+// ---------------------------------------------------------------------------
+
+function uiTypical(): MockData {
+  return {
+    ...typical(),
+    output_style: { name: 'Explanatory' },
+    agent: { name: 'general-purpose' },
+  }
+}
+
+// Default skeletons used when a setter runs while its object is somehow absent
+// (so editing always lands a valid object).
+const COST_DEFAULT = {
+  total_cost_usd: 0,
+  total_duration_ms: 0,
+  total_api_duration_ms: 0,
+  total_lines_added: 0,
+  total_lines_removed: 0,
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -29,21 +57,30 @@ export interface MockState {
   setSessionResetMinutes(min: number): void
   setWeekResetMinutes(min: number): void
 
-  // presence toggles for optional objects
-  toggleRateLimits(on: boolean): void
-  toggleEffort(on: boolean): void
-  toggleOutputStyle(on: boolean): void
-  toggleCost(on: boolean): void
-  toggleContext(on: boolean): void
-
-  // dropdowns / text
+  // session facts
   setModelName(name: string): void
   setEffortLevel(level: EffortLevel): void
+  setOutputStyle(name: string): void
+  setAgentName(name: string): void
+  setVersion(v: string): void
+
+  // workspace
+  setDirectory(path: string): void
   setGitBranch(branch: string): void
+
+  // cost / activity
+  setCostUsd(usd: number): void
+  setDurationMinutes(min: number): void
+  setLinesAdded(n: number): void
+  setLinesRemoved(n: number): void
 }
 
 function pct(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)))
+}
+
+function nonNeg(n: number): number {
+  return Math.max(0, Math.round(n))
 }
 
 // ---------------------------------------------------------------------------
@@ -59,7 +96,7 @@ const EFFORTS: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const BRANCHES = ['main', 'develop', 'feat/ui', 'hotfix/prod-down', 'release/1.2']
 
 function randomMock(): MockData {
-  const base = typical()
+  const base = uiTypical()
   const c = pct(Math.random() * 100)
   const s = pct(Math.random() * 100)
   const w = pct(Math.random() * 100)
@@ -85,9 +122,9 @@ function randomMock(): MockData {
 // ---------------------------------------------------------------------------
 
 export const useMockStore = create<MockState>()((set) => ({
-  mock: typical(),
+  mock: uiTypical(),
 
-  reset: () => set({ mock: typical() }),
+  reset: () => set({ mock: uiTypical() }),
   randomize: () => set({ mock: randomMock() }),
 
   setContextPct: (p) =>
@@ -150,74 +187,37 @@ export const useMockStore = create<MockState>()((set) => ({
       }
     }),
 
-  toggleRateLimits: (on) =>
-    set((st) => {
-      if (on) {
-        const now = st.mock._now
-        return {
-          mock: {
-            ...st.mock,
-            rate_limits: {
-              five_hour: { used_percentage: 23, resets_at: now + 7200 },
-              seven_day: { used_percentage: 41, resets_at: now + 3 * 86400 },
-            },
-          },
-        }
-      }
-      const next = { ...st.mock }
-      delete next.rate_limits
-      return { mock: next }
-    }),
-  toggleEffort: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on) next.effort = { level: 'high' }
-      else delete next.effort
-      return { mock: next }
-    }),
-  toggleOutputStyle: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on) next.output_style = { name: 'Explanatory' }
-      else delete next.output_style
-      return { mock: next }
-    }),
-  toggleCost: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on)
-        next.cost = {
-          total_cost_usd: 0.42,
-          total_duration_ms: 23 * 60 * 1000,
-          total_api_duration_ms: 8 * 60 * 1000,
-          total_lines_added: 120,
-          total_lines_removed: 35,
-        }
-      else delete next.cost
-      return { mock: next }
-    }),
-  toggleContext: (on) =>
-    set((st) => {
-      const next = { ...st.mock }
-      if (on)
-        next.context_window = {
-          total_input_tokens: 68000,
-          total_output_tokens: 4200,
-          context_window_size: 200000,
-          used_percentage: 34,
-          remaining_percentage: 66,
-          current_usage: null,
-        }
-      else delete next.context_window
-      return { mock: next }
-    }),
-
   setModelName: (name) =>
+    set((st) => ({ mock: { ...st.mock, model: { ...st.mock.model, display_name: name } } })),
+  setEffortLevel: (level) => set((st) => ({ mock: { ...st.mock, effort: { level } } })),
+  setOutputStyle: (name) => set((st) => ({ mock: { ...st.mock, output_style: { name } } })),
+  setAgentName: (name) => set((st) => ({ mock: { ...st.mock, agent: { name } } })),
+  setVersion: (v) => set((st) => ({ mock: { ...st.mock, version: v } })),
+
+  setDirectory: (path) =>
     set((st) => ({
-      mock: { ...st.mock, model: { ...st.mock.model, display_name: name } },
+      mock: { ...st.mock, cwd: path, workspace: { ...st.mock.workspace, current_dir: path } },
     })),
-  setEffortLevel: (level) =>
-    set((st) => ({ mock: { ...st.mock, effort: { level } } })),
-  setGitBranch: (branch) =>
-    set((st) => ({ mock: { ...st.mock, _gitBranch: branch } })),
+  setGitBranch: (branch) => set((st) => ({ mock: { ...st.mock, _gitBranch: branch } })),
+
+  setCostUsd: (usd) =>
+    set((st) => {
+      const cost = st.mock.cost ?? COST_DEFAULT
+      return { mock: { ...st.mock, cost: { ...cost, total_cost_usd: Math.max(0, usd) } } }
+    }),
+  setDurationMinutes: (min) =>
+    set((st) => {
+      const cost = st.mock.cost ?? COST_DEFAULT
+      return { mock: { ...st.mock, cost: { ...cost, total_duration_ms: nonNeg(min) * 60000 } } }
+    }),
+  setLinesAdded: (n) =>
+    set((st) => {
+      const cost = st.mock.cost ?? COST_DEFAULT
+      return { mock: { ...st.mock, cost: { ...cost, total_lines_added: nonNeg(n) } } }
+    }),
+  setLinesRemoved: (n) =>
+    set((st) => {
+      const cost = st.mock.cost ?? COST_DEFAULT
+      return { mock: { ...st.mock, cost: { ...cost, total_lines_removed: nonNeg(n) } } }
+    }),
 }))
